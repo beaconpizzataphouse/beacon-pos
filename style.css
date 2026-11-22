@@ -349,6 +349,76 @@ button:disabled { opacity: 0.45; cursor: default; }
 }
 .orders-empty { color: var(--muted); font-size: 18px; padding: 24px 0; text-align: center; }
 
+/* ---------- reports view ---------- */
+.topbar-actions { display: flex; gap: 8px; }
+.reports-view { padding: 12px 16px 24px; max-width: 860px; margin: 0 auto; }
+.report-sub { color: var(--muted); font-size: 17px; margin: 8px 0 0; }
+.seg-toggle { display: flex; gap: 8px; margin: 14px 0; }
+.seg-btn {
+  flex: 1;
+  min-height: 52px;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 12px;
+}
+.seg-btn.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+.report-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin: 14px 0 6px;
+}
+.report-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.report-value { display: block; font-size: 34px; font-weight: 800; line-height: 1.1; }
+.report-label { display: block; margin-top: 4px; font-size: 16px; color: var(--muted); }
+.report-section { margin: 26px 0 0; font-size: 21px; font-weight: 800; }
+.report-list {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-top: 10px;
+}
+.report-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 18px;
+}
+.report-row:last-child { border-bottom: none; }
+.report-row-name { font-weight: 700; }
+.report-row-value { font-weight: 800; white-space: nowrap; }
+.report-none { color: var(--muted); font-size: 17px; margin: 10px 0; }
+.bar-list {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  margin-top: 10px;
+}
+.bar-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+.bar-label { flex: 0 0 100px; font-size: 17px; font-weight: 700; }
+.bar-track { flex: 1; height: 26px; background: var(--bg); border-radius: 8px; overflow: hidden; }
+.bar-fill { display: block; height: 100%; background: var(--accent); border-radius: 8px; }
+.bar-value { flex: 0 0 auto; min-width: 92px; text-align: right; font-size: 17px; font-weight: 800; }
+.report-note { color: var(--muted); font-size: 15px; margin: 18px 0 0; }
+.report-note + .report-note { margin-top: 4px; }
+.report-empty { color: var(--muted); font-size: 19px; padding: 32px 0; text-align: center; }
+
 /* ---------- modals ---------- */
 .modal {
   position: fixed;

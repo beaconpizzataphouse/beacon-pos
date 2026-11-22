@@ -765,5 +765,49 @@ try {
 } catch (e) { threw = e; }
 check("flow renders run without throwing", threw === null, threw && threw.message);
 
+/* ---------- sales report: modifier revenue counts toward the item ---------- */
+console.log("sales report (modifier revenue):");
+function orderFromLines(number, lines) {
+  const items = lines.map(function (l) {
+    return { name: l.name, size: l.size, qty: l.qty, priceCents: l.priceCents,
+             notes: "", detail: l.detail, mods: l.mods };
+  });
+  const subtotal = items.reduce(function (s, it) { return s + it.priceCents * it.qty; }, 0);
+  const tax = Math.round(subtotal * 0.06);
+  return { number: number, type: "dine-in", name: "", items: items,
+    subtotalCents: subtotal, taxCents: tax, totalCents: subtotal + tax,
+    placedAt: Date.now(), status: "Sent" };
+}
+const hawaiian = POS.buildHalfHalfLine("Hawaiian", "18", ["Jalapenos"], ["Olives"]); // $29.55
+hawaiian.qty = 2;
+const blt = POS.buildSandwichLine("BLT", 1199, ["Swiss"], ["Lettuce", "Tomatoes"], ["Bacon"]); // $16.19
+blt.qty = 1;
+const wings = POS.buildWingLine("Bone-in Wings", 1899, "Buffalo", [], "Celery", "All Flats", false, []); // $21.99
+wings.qty = 1;
+const pasta = POS.buildPastaLine("Build Your Own Pasta", 1299, "Pink Sauce", "Gluten Free", ["Chicken", "Broccoli"]); // $16.09
+pasta.qty = 1;
+POS.saveOrders([orderFromLines(301, [hawaiian, blt, wings, pasta])]);
+const rMod = POS.computeReport(POS.reportOrders("today"), "today");
+check("report gross includes all modifier revenue: $113.37",
+  rMod.grossCents === 11337, "got " + rMod.grossCents);
+check("half-and-half pizza gross counts both halves' toppings: 2 x $29.55",
+  rMod.topItemsByGross[0].label === "18\u2033 Hawaiian" &&
+  rMod.topItemsByGross[0].grossCents === 5910);
+check("sandwich gross counts cheese + veggies + meat: $16.19",
+  rMod.topItemsByGross.some(function (r) { return r.label === "BLT" && r.grossCents === 1619; }));
+check("wings gross counts All Flats +$3.00: $21.99",
+  rMod.topItemsByGross.some(function (r) { return r.label === "Bone-in Wings" && r.grossCents === 2199; }));
+check("pasta gross counts Pink sauce + add-ins: $16.09",
+  rMod.topItemsByGross.some(function (r) { return r.label === "Build Your Own Pasta" && r.grossCents === 1609; }));
+check("category gross carries modifier revenue too",
+  rMod.topCategoriesByGross.find(function (r) { return r.label === "Pizzas"; }).grossCents === 5910 &&
+  rMod.topCategoriesByGross.find(function (r) { return r.label === "Sandwiches"; }).grossCents === 1619 &&
+  rMod.topCategoriesByGross.find(function (r) { return r.label === "Wings"; }).grossCents === 2199 &&
+  rMod.topCategoriesByGross.find(function (r) { return r.label === "Pasta"; }).grossCents === 1609);
+POS.state.report.period = "today";
+check("report HTML shows the modifier-built order",
+  POS.reportsHTML().indexOf("$113.37") !== -1 &&
+  POS.reportsHTML().indexOf("18\u2033 Hawaiian") !== -1);
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

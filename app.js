@@ -46,13 +46,14 @@
 
   var state = {
     tab: "pizzas",
-    view: "order",          // "order" | "orders"
+    view: "order",          // "order" | "orders" | "reports"
     cart: [],               // { key, name, size, priceCents, qty, notes, category, detail, mods }
     orderType: "dine-in",
     tableName: "",
     pendingPizza: null,     // pizza awaiting a size choice
     flow: null,             // active modifier flow, see startPizzaFlow/startWingFlow/startSandwichFlow/startPastaFlow
-    lastOrder: null
+    lastOrder: null,
+    report: { period: "today", itemsMode: "gross", catsMode: "gross" }
   };
 
   /* ---------------- storage (safe when unavailable) ---------------- */
@@ -448,6 +449,168 @@
     saveOrders(list);
   }
 
+  /* ---------------- reports ----------------
+     Reports read the same saved orders as the Orders view — orders
+     taken on THIS iPad only. No payment data exists here (payment
+     stays in Square), so there is no card/cash split and no fees;
+     that comes with the Square link-up. Gross is the sum of item
+     prices (before tax), like Square's Gross Sales; modifier
+     prices are already folded into each line's priceCents, so they
+     count toward the item's gross. There is no "vs last week"
+     comparison yet — that waits until there is history to compare. */
+  function startOfDay(ts) {
+    var d = new Date(ts);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }
+
+  /* Midnight n calendar days ago (calendar math, not 24-hour
+     chunks, so a daylight-saving change doesn't shift the
+     boundary). */
+  function dayStartDaysAgo(n) {
+    var d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - n);
+    return d.getTime();
+  }
+
+  function reportOrders(period) {
+    var all = loadOrders();
+    if (period === "week") {
+      var weekStart = dayStartDaysAgo(6);
+      return all.filter(function (o) { return o.placedAt >= weekStart; });
+    }
+    return all.filter(function (o) { return isToday(o.placedAt); });
+  }
+
+  /* Gross of one saved order, from its items (before tax). */
+  function orderGross(o) {
+    var g = 0;
+    (o.items || []).forEach(function (it) { g += it.priceCents * it.qty; });
+    return g;
+  }
+
+  /* Category for a saved order item, by menu lookup. Saved orders
+     don't store a category (and older orders never had one), so
+     the menu is the source of truth. Item names are unique across
+     categories, so a name match is unambiguous; an item no longer
+     on the menu falls under "Other". */
+  function categoryForItem(name) {
+    if (MENU) {
+      for (var i = 0; i < MENU.categories.length; i++) {
+        var c = MENU.categories[i];
+        var items = c.items || [];
+        for (var j = 0; j < items.length; j++) {
+          if (items[j].name === name) return { id: c.id, label: c.label };
+        }
+        var groups = c.groups || [];
+        for (var g = 0; g < groups.length; g++) {
+          for (var k = 0; k < groups[g].items.length; k++) {
+            if (groups[g].items[k].name === name) return { id: c.id, label: c.label };
+          }
+        }
+      }
+    }
+    return { id: "other", label: "Other" };
+  }
+
+  function topItemLabel(name, size) {
+    return size ? size + " " + name : name;
+  }
+
+  /* Sort aggregated rows by gross or count, highest first; ties
+     break alphabetically so the order is stable. */
+  function sortTop(list, mode) {
+    return list.slice().sort(function (a, b) {
+      var va = mode === "count" ? a.qty : a.grossCents;
+      var vb = mode === "count" ? b.qty : b.grossCents;
+      if (vb !== va) return vb - va;
+      return a.label < b.label ? -1 : (a.label > b.label ? 1 : 0);
+    });
+  }
+
+  var WEEKDAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var WEEKDAYS_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  var MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  var MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July",
+                     "August", "September", "October", "November", "December"];
+
+  function fmtShortDay(ts) {
+    var d = new Date(ts);
+    return WEEKDAYS_SHORT[d.getDay()] + " " + MONTHS_SHORT[d.getMonth()] + " " + d.getDate();
+  }
+  function fmtLongDay(ts) {
+    var d = new Date(ts);
+    return WEEKDAYS_LONG[d.getDay()] + ", " + MONTHS_LONG[d.getMonth()] + " " +
+      d.getDate() + ", " + d.getFullYear();
+  }
+  function fmtMonthDay(ts) {
+    var d = new Date(ts);
+    return MONTHS_SHORT[d.getMonth()] + " " + d.getDate();
+  }
+  function hourLabel(h) {
+    if (h === 0) return "12 AM";
+    if (h < 12) return h + " AM";
+    if (h === 12) return "12 PM";
+    return (h - 12) + " PM";
+  }
+
+  /* Pure report math over an order list. period: "today" | "week".
+     Buckets are the hours with sales (today, in order) or all 7
+     days, oldest first (week — days with no sales show $0.00). */
+  function computeReport(orders, period) {
+    var gross = 0;
+    var itemAgg = {};   /* key: name + KEY_SEP + size */
+    var catAgg = {};    /* key: category id */
+    var hourAgg = {};   /* key: hour 0-23 */
+    var dayAgg = {};    /* key: startOfDay(placedAt) */
+    orders.forEach(function (o) {
+      var og = orderGross(o);
+      gross += og;
+      var h = new Date(o.placedAt).getHours();
+      hourAgg[h] = (hourAgg[h] || 0) + og;
+      var d = startOfDay(o.placedAt);
+      dayAgg[d] = (dayAgg[d] || 0) + og;
+      (o.items || []).forEach(function (it) {
+        var lineGross = it.priceCents * it.qty;
+        var key = it.name + KEY_SEP + (it.size || "");
+        if (!itemAgg[key]) {
+          itemAgg[key] = { label: topItemLabel(it.name, it.size || ""), qty: 0, grossCents: 0 };
+        }
+        itemAgg[key].qty += it.qty;
+        itemAgg[key].grossCents += lineGross;
+        var cat = categoryForItem(it.name);
+        if (!catAgg[cat.id]) catAgg[cat.id] = { label: cat.label, qty: 0, grossCents: 0 };
+        catAgg[cat.id].qty += it.qty;
+        catAgg[cat.id].grossCents += lineGross;
+      });
+    });
+    var items = Object.keys(itemAgg).map(function (k) { return itemAgg[k]; });
+    var cats = Object.keys(catAgg).map(function (k) { return catAgg[k]; });
+    var buckets = [];
+    if (period === "week") {
+      for (var i = 6; i >= 0; i--) {
+        var ds = dayStartDaysAgo(i);
+        buckets.push({ label: fmtShortDay(ds), grossCents: dayAgg[ds] || 0 });
+      }
+    } else {
+      Object.keys(hourAgg).map(Number).sort(function (a, b) { return a - b; }).forEach(function (h) {
+        buckets.push({ label: hourLabel(h), grossCents: hourAgg[h] });
+      });
+    }
+    return {
+      period: period,
+      orderCount: orders.length,
+      grossCents: gross,
+      avgCents: orders.length ? Math.round(gross / orders.length) : 0,
+      topItemsByGross: sortTop(items, "gross").slice(0, 10),
+      topItemsByCount: sortTop(items, "count").slice(0, 10),
+      topCategoriesByGross: sortTop(cats, "gross"),
+      topCategoriesByCount: sortTop(cats, "count"),
+      buckets: buckets
+    };
+  }
+
   /* ---------------- HTML builders (pure, testable) ---------------- */
   function tabsHTML() {
     if (!MENU) return "";
@@ -546,6 +709,108 @@
     }).join("");
   }
 
+  /* ---------------- report view ---------------- */
+  function segToggleHTML(name, options, active) {
+    return '<div class="seg-toggle" role="group">' + options.map(function (o) {
+      return '<button type="button" class="seg-btn' + (o.value === active ? " active" : "") +
+        '" data-report-' + name + '="' + o.value + '">' + esc(o.label) + "</button>";
+    }).join("") + "</div>";
+  }
+
+  function summaryCardsHTML(r) {
+    return '<div class="report-cards">' +
+      '<div class="report-card"><span class="report-value">' + fmt(r.grossCents) +
+      '</span><span class="report-label">Gross sales</span></div>' +
+      '<div class="report-card"><span class="report-value">' + r.orderCount +
+      '</span><span class="report-label">Orders</span></div>' +
+      '<div class="report-card"><span class="report-value">' + fmt(r.avgCents) +
+      '</span><span class="report-label">Average sale</span></div>' +
+      "</div>";
+  }
+
+  function topListHTML(rows, mode) {
+    if (rows.length === 0) return '<p class="report-none">Nothing sold in this period.</p>';
+    return '<div class="report-list">' + rows.map(function (r) {
+      var value = mode === "count" ? String(r.qty) : fmt(r.grossCents);
+      return '<div class="report-row"><span class="report-row-name">' + esc(r.label) + "</span>" +
+        '<span class="report-row-value">' + value + "</span></div>";
+    }).join("") + "</div>";
+  }
+
+  /* Plain CSS bars — no chart library. Each bar's width is its
+     share of the biggest bucket in the list. */
+  function barsHTML(buckets) {
+    if (buckets.length === 0) return '<p class="report-none">Nothing sold in this period.</p>';
+    var max = 0;
+    buckets.forEach(function (b) { if (b.grossCents > max) max = b.grossCents; });
+    return '<div class="bar-list">' + buckets.map(function (b) {
+      var pct = max > 0 ? Math.round(b.grossCents / max * 100) : 0;
+      return '<div class="bar-row"><span class="bar-label">' + esc(b.label) + "</span>" +
+        '<span class="bar-track"><span class="bar-fill" style="width: ' + pct + '%"></span></span>' +
+        '<span class="bar-value">' + fmt(b.grossCents) + "</span></div>";
+    }).join("") + "</div>";
+  }
+
+  function reportsHTML() {
+    var period = state.report.period;
+    var r = computeReport(reportOrders(period), period);
+    var sub = period === "week"
+      ? fmtMonthDay(dayStartDaysAgo(6)) + " \u2013 " + fmtMonthDay(Date.now()) +
+        ", " + new Date().getFullYear()
+      : fmtLongDay(Date.now());
+    var html = '<p class="report-sub">' + esc(sub) + "</p>" +
+      segToggleHTML("period",
+        [{ value: "today", label: "Today" }, { value: "week", label: "This week" }], period) +
+      summaryCardsHTML(r);
+    if (r.orderCount === 0) {
+      html += '<div class="report-empty">No orders sent yet.</div>';
+    } else {
+      html += '<h3 class="report-section">Top items</h3>' +
+        segToggleHTML("items-mode",
+          [{ value: "gross", label: "Gross" }, { value: "count", label: "Count" }],
+          state.report.itemsMode) +
+        topListHTML(state.report.itemsMode === "count" ? r.topItemsByCount : r.topItemsByGross,
+          state.report.itemsMode);
+      html += '<h3 class="report-section">Top categories</h3>' +
+        segToggleHTML("cats-mode",
+          [{ value: "gross", label: "Gross" }, { value: "count", label: "Count" }],
+          state.report.catsMode) +
+        topListHTML(state.report.catsMode === "count" ? r.topCategoriesByCount : r.topCategoriesByGross,
+          state.report.catsMode);
+      html += '<h3 class="report-section">' +
+        (period === "week" ? "Sales by day" : "Sales by hour") + "</h3>" +
+        barsHTML(r.buckets);
+    }
+    html += '<p class="report-note">Totals cover orders taken on this iPad only.</p>' +
+      '<p class="report-note">Card/cash and fees come with the Square link-up.</p>';
+    return html;
+  }
+
+  function renderReports() {
+    var body = el("reports-body");
+    if (body) body.innerHTML = reportsHTML();
+  }
+
+  function onReportsClick(e) {
+    var periodBtn = closestBtn(e.target, "data-report-period");
+    if (periodBtn) {
+      state.report.period = periodBtn.getAttribute("data-report-period");
+      renderReports();
+      return;
+    }
+    var itemsBtn = closestBtn(e.target, "data-report-items-mode");
+    if (itemsBtn) {
+      state.report.itemsMode = itemsBtn.getAttribute("data-report-items-mode");
+      renderReports();
+      return;
+    }
+    var catsBtn = closestBtn(e.target, "data-report-cats-mode");
+    if (catsBtn) {
+      state.report.catsMode = catsBtn.getAttribute("data-report-cats-mode");
+      renderReports();
+    }
+  }
+
   /* ---------------- DOM rendering ---------------- */
   function el(id) {
     return (typeof document !== "undefined") ? document.getElementById(id) : null;
@@ -596,14 +861,16 @@
 
   function showView(view) {
     state.view = view;
-    var ov = el("order-view"), xv = el("orders-view"), tabs = el("tabs");
+    var ov = el("order-view"), xv = el("orders-view"), rv = el("reports-view"), tabs = el("tabs");
     if (ov) ov.hidden = view !== "order";
     if (xv) xv.hidden = view !== "orders";
-    if (tabs) tabs.hidden = view === "orders";
+    if (rv) rv.hidden = view !== "reports";
+    if (tabs) tabs.hidden = view !== "order";
     if (view === "orders") {
       var list = el("orders-list");
       if (list) list.innerHTML = ordersHTML();
     }
+    if (view === "reports") renderReports();
     renderOrdersCount();
   }
 
@@ -1227,7 +1494,9 @@
         back = el("back-btn"), sizeOpts = el("size-options"),
         sizeCancel = el("size-cancel"), confirmDone = el("confirm-done"),
         sizeModal = el("size-modal"), confirmModal = el("confirm-modal"),
-        flowModal = el("flow-modal"), ordersList = el("orders-list");
+        flowModal = el("flow-modal"), ordersList = el("orders-list"),
+        reportsBtn = el("reports-btn"), reportsBack = el("reports-back-btn"),
+        reportsBody = el("reports-body");
 
     if (tabs) tabs.addEventListener("click", onTabsClick);
     if (grid) grid.addEventListener("click", onGridClick);
@@ -1245,6 +1514,9 @@
     if (clear) clear.addEventListener("click", function () { clearCart(); renderCart(); });
     if (ordersBtn) ordersBtn.addEventListener("click", function () { showView("orders"); });
     if (back) back.addEventListener("click", function () { showView("order"); });
+    if (reportsBtn) reportsBtn.addEventListener("click", function () { showView("reports"); });
+    if (reportsBack) reportsBack.addEventListener("click", function () { showView("order"); });
+    if (reportsBody) reportsBody.addEventListener("click", onReportsClick);
     if (sizeOpts) sizeOpts.addEventListener("click", onSizeOptionsClick);
     if (sizeCancel) sizeCancel.addEventListener("click", closeSizePicker);
     if (confirmDone) confirmDone.addEventListener("click", hideConfirm);
@@ -1283,8 +1555,11 @@
     changeQty: changeQty, removeLine: removeLine,
     setLineNotes: setLineNotes, clearCart: clearCart,
     cartTotals: cartTotals, sendOrder: sendOrder,
-    loadOrders: loadOrders, todaysOrders: todaysOrders,
+    loadOrders: loadOrders, saveOrders: saveOrders, todaysOrders: todaysOrders,
     removeOrder: removeOrder,
+    reportOrders: reportOrders, orderGross: orderGross,
+    categoryForItem: categoryForItem, computeReport: computeReport,
+    reportsHTML: reportsHTML, renderReports: renderReports,
     nextOrderNumber: nextOrderNumber,
     tabsHTML: tabsHTML, gridHTML: gridHTML, drinkJumpHTML: drinkJumpHTML,
     cartLinesHTML: cartLinesHTML, ordersHTML: ordersHTML,

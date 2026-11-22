@@ -15,14 +15,14 @@ order only. There is no payment flow here, by design.
 | --- | --- |
 | `index.html` | Page shell: demo banner, tabs, item grid, order panel, modals |
 | `style.css` | Light, clean front-counter look; big touch targets; cart on the right in landscape, stacked below the menu in portrait |
-| `app.js` | Cart, totals (6% tax), size picker, modifier flows, send-to-kitchen (demo), Orders view |
+| `app.js` | Cart, totals (6% tax), size picker, modifier flows, send-to-kitchen (demo), Orders view, Reports view |
 | `menu.js` | Menu data — **generated, do not hand-edit** (see below) |
 | `generate_menu.py` | Builds `menu.js` from the Square Item Library CSV export |
 | `modifiers.json` | Modifier lists read from the Square Dashboard (27 sets, 562 options with prices) |
 | `modifiers.js` | Modifier data — **generated, do not hand-edit** (see below) |
 | `generate_modifiers.py` | Builds `modifiers.js` from `modifiers.json` |
-| `pos-test.js` | Regression harness (69 checks): menu, cart, tax, orders — run with `node pos-test.js` |
-| `pos-modifiers-test.js` | Modifier-flow harness (210 checks): topping/wing/sandwich/pasta math, flows, merge rules — run with `node pos-modifiers-test.js` |
+| `pos-test.js` | Regression harness (95 checks): menu, cart, tax, orders, reports — run with `node pos-test.js` |
+| `pos-modifiers-test.js` | Modifier-flow harness (217 checks): topping/wing/sandwich/pasta math, flows, merge rules, report modifier revenue — run with `node pos-modifiers-test.js` |
 
 ## Modifier source
 
@@ -99,6 +99,36 @@ stay separate; identical lines merge. The notes field still works
 on every line. If `modifiers.js` fails to load, pizzas, wings,
 sandwiches, and pastas fall back to the old plain add (no flow)
 so ordering never breaks.
+
+## Sales report
+
+**Reports** (top right, next to Orders) reads the same saved
+orders as the Orders view — orders taken on THIS iPad only — and
+turns them into a Square-style sales report. No fake data: with
+no orders it shows zeros and "No orders sent yet."
+
+- **Period toggle:** Today / This week (last 7 days, calendar
+  days — an order exactly at midnight 6 days ago counts, one
+  millisecond before it doesn't).
+- **Summary cards:** Gross sales (item prices before tax, like
+  Square's Gross Sales), Orders (count), Average sale
+  (gross ÷ orders). No Net/Discounts/Refunds — the app has no
+  discounts or refunds, so none are shown.
+- **Top items:** top 10, Gross / Count toggle. Pizzas are listed
+  by size, e.g. `18″ Beacon Supreme`. Modifier prices are already
+  folded into each line's price, so they count toward the item's
+  gross (a $29.55 half-and-half Hawaiian counts as $29.55).
+- **Top categories:** Gross / Count toggle. Categories come from
+  a menu lookup by item name (names are unique across
+  categories); an item no longer on the menu falls under "Other".
+- **Sales by hour** (Today — only hours with sales) and **Sales
+  by day** (This week — all 7 days, oldest first, $0.00 days
+  shown). Plain CSS bars, no chart library.
+- The view carries two honest notes: "Totals cover orders taken
+  on this iPad only" and "Card/cash and fees come with the Square
+  link-up" — payment still happens in Square, so there is no
+  payment-type split yet, and the "vs previous Saturday"
+  comparison waits until there is history to compare.
 
 ## Next steps (not built yet)
 
@@ -192,6 +222,10 @@ Seltzers, Cider, NA Beer, Soda & More, Kegs).
    Each order card has a Remove button, which asks once ("Remove
    this order?") before deleting — saved orders are real customer
    orders, so removal is deliberate.
+5. **Reports** (top right) shows gross sales, order count, and
+   average sale for Today or This week, plus top items, top
+   categories, and sales by hour/day — all from the orders saved
+   on this iPad. See "Sales report" above.
 
 ## Wiring it up later (Square)
 

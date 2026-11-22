@@ -290,5 +290,152 @@ check("order count element updates after removal", (function () {
   return byId["orders-count"].textContent === "2";
 })());
 
+/* ---------- sales report ---------- */
+console.log("sales report:");
+function seedOrder(number, placedAt, items) {
+  const subtotal = items.reduce(function (s, it) { return s + it.priceCents * it.qty; }, 0);
+  const tax = Math.round(subtotal * 0.06);
+  return { number: number, type: "dine-in", name: "", items: items.map(function (it) {
+    return { name: it.name, size: it.size || "", qty: it.qty, priceCents: it.priceCents,
+             notes: "", detail: "", mods: it.mods || [] };
+  }), subtotalCents: subtotal, taxCents: tax, totalCents: subtotal + tax,
+    placedAt: placedAt, status: "Sent" };
+}
+const t0 = (function () { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
+const weekStart = (function () {
+  const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - 6); return d.getTime();
+})();
+const H = 60 * 60 * 1000, D = 24 * H;
+const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MO = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function shortDay(ts) {
+  const d = new Date(ts);
+  return WD[d.getDay()] + " " + MO[d.getMonth()] + " " + d.getDate();
+}
+
+/* empty state — no fake sales data, just zeros */
+POS.saveOrders([]);
+POS.state.report.period = "today";
+const rEmpty = POS.computeReport(POS.reportOrders("today"), "today");
+check("empty today report is all zeros",
+  rEmpty.orderCount === 0 && rEmpty.grossCents === 0 && rEmpty.avgCents === 0);
+check("empty report has no top items or categories",
+  rEmpty.topItemsByGross.length === 0 && rEmpty.topCategoriesByGross.length === 0);
+const rEmptyWeek = POS.computeReport(POS.reportOrders("week"), "week");
+check("empty week report: 7 day buckets, all zero",
+  rEmptyWeek.buckets.length === 7 &&
+  rEmptyWeek.buckets.every(function (b) { return b.grossCents === 0; }));
+check("empty report HTML says no orders sent yet",
+  POS.reportsHTML().indexOf("No orders sent yet") !== -1);
+check("empty report HTML shows zero cards", POS.reportsHTML().indexOf("$0.00") !== -1);
+check("report HTML carries the honest notes",
+  POS.reportsHTML().indexOf("this iPad only") !== -1 &&
+  POS.reportsHTML().indexOf("Square link-up") !== -1);
+
+/* scripted orders across the week boundary */
+POS.saveOrders([
+  seedOrder(201, t0 + 12 * H + 30 * 60 * 1000, [ // today 12:30 PM — $60.40
+    { name: "Beacon Supreme", size: "18\u2033", qty: 2, priceCents: 2995 },
+    { name: "Ranch", qty: 1, priceCents: 50 }]),
+  seedOrder(202, t0 + 17 * H + 15 * 60 * 1000, [ // today 5:15 PM — $67.92
+    { name: "Beacon Supreme", size: "18\u2033", qty: 1, priceCents: 2995 },
+    { name: "BLT", qty: 3, priceCents: 1199 },
+    { name: "Ranch", qty: 4, priceCents: 50 }]),
+  seedOrder(203, t0 - D + 18 * H, [ // yesterday 6 PM — $22.95
+    { name: "Classic Pepperoni", size: "16\u2033", qty: 1, priceCents: 2295 }]),
+  seedOrder(204, t0 - 6 * D + 12 * H, [ // 6 days ago noon — $37.98
+    { name: "Bone-in Wings", qty: 2, priceCents: 1899 }]),
+  seedOrder(205, t0 - 7 * D + 12 * H, [ // 7 days ago — outside the week
+    { name: "Spaghetti", qty: 1, priceCents: 1499 }]),
+  seedOrder(206, weekStart, [ // exactly at the week boundary — included
+    { name: "Ranch", qty: 1, priceCents: 50 }]),
+  seedOrder(207, weekStart - 1, [ // 1ms before the boundary — excluded
+    { name: "Ranch", qty: 1, priceCents: 50 }])
+]);
+check("today filter returns the 2 orders from today",
+  POS.reportOrders("today").length === 2);
+check("week filter returns 5 orders (boundary in, 7-day-out out)", (function () {
+  const nums = POS.reportOrders("week").map(function (o) { return o.number; }).sort();
+  return nums.join(",") === "201,202,203,204,206";
+})());
+
+const rToday = POS.computeReport(POS.reportOrders("today"), "today");
+check("today math: gross $128.32, 2 orders, avg $64.16",
+  rToday.grossCents === 12832 && rToday.orderCount === 2 && rToday.avgCents === 6416,
+  JSON.stringify({ g: rToday.grossCents, n: rToday.orderCount, a: rToday.avgCents }));
+const rWeek = POS.computeReport(POS.reportOrders("week"), "week");
+check("week math: gross $189.75, 5 orders, avg $37.95",
+  rWeek.grossCents === 18975 && rWeek.orderCount === 5 && rWeek.avgCents === 3795,
+  JSON.stringify({ g: rWeek.grossCents, n: rWeek.orderCount, a: rWeek.avgCents }));
+
+check("top items by gross: 18-inch Supreme first at $89.85",
+  rToday.topItemsByGross[0].label === "18\u2033 Beacon Supreme" &&
+  rToday.topItemsByGross[0].grossCents === 8985);
+check("top items by gross order: Supreme, BLT, Ranch",
+  rToday.topItemsByGross.map(function (r) { return r.label; }).join("|") ===
+  "18\u2033 Beacon Supreme|BLT|Ranch");
+check("top items by count: Ranch first with 5",
+  rToday.topItemsByCount[0].label === "Ranch" && rToday.topItemsByCount[0].qty === 5);
+check("top items by count tie breaks alphabetically (Supreme before BLT)",
+  rToday.topItemsByCount[1].label === "18\u2033 Beacon Supreme" &&
+  rToday.topItemsByCount[2].label === "BLT");
+check("top categories by gross: Pizzas first at $89.85",
+  rToday.topCategoriesByGross[0].label === "Pizzas" &&
+  rToday.topCategoriesByGross[0].grossCents === 8985);
+check("top categories by count: Apps & Sides first with 5",
+  rToday.topCategoriesByCount[0].label === "Apps & Sides" &&
+  rToday.topCategoriesByCount[0].qty === 5);
+check("category lookup by menu name", POS.categoryForItem("Beacon Supreme").id === "pizzas" &&
+  POS.categoryForItem("BLT").id === "sandwiches" &&
+  POS.categoryForItem("Bone-in Wings").id === "wings" &&
+  POS.categoryForItem("Ranch").id === "apps" &&
+  POS.categoryForItem("Spaghetti").id === "pasta");
+check("unknown item falls under Other", POS.categoryForItem("No Such Item").id === "other");
+
+check("hourly buckets: 12 PM $60.40 and 5 PM $67.92",
+  rToday.buckets.length === 2 &&
+  rToday.buckets[0].label === "12 PM" && rToday.buckets[0].grossCents === 6040 &&
+  rToday.buckets[1].label === "5 PM" && rToday.buckets[1].grossCents === 6792,
+  JSON.stringify(rToday.buckets));
+check("week buckets: 7 days, oldest first",
+  rWeek.buckets.length === 7 &&
+  rWeek.buckets[0].grossCents === 3848 && // 6 days ago: wings + boundary ranch
+  rWeek.buckets[5].grossCents === 2295 && // yesterday
+  rWeek.buckets[6].grossCents === 12832 && // today
+  rWeek.buckets[1].grossCents === 0, JSON.stringify(rWeek.buckets));
+check("week bucket labels match the calendar",
+  rWeek.buckets[0].label === shortDay(weekStart) &&
+  rWeek.buckets[6].label === shortDay(t0));
+
+POS.state.report.period = "today";
+POS.state.report.itemsMode = "gross";
+const rhToday = POS.reportsHTML();
+check("report HTML (today) shows gross, top item, sales by hour",
+  rhToday.indexOf("$128.32") !== -1 &&
+  rhToday.indexOf("18\u2033 Beacon Supreme") !== -1 &&
+  rhToday.indexOf("Sales by hour") !== -1);
+POS.state.report.period = "week";
+const rhWeek = POS.reportsHTML();
+check("report HTML (week) shows gross and sales by day",
+  rhWeek.indexOf("$189.75") !== -1 && rhWeek.indexOf("Sales by day") !== -1);
+POS.state.report.period = "today";
+POS.state.report.itemsMode = "count";
+const rhCount = POS.reportsHTML();
+check("count toggle reorders top items (Ranch first)",
+  rhCount.indexOf("Ranch") !== -1 &&
+  rhCount.indexOf("Ranch") < rhCount.indexOf("18\u2033 Beacon Supreme"));
+POS.state.report.itemsMode = "gross";
+const rhGross = POS.reportsHTML();
+check("gross toggle reorders top items (Supreme first)",
+  rhGross.indexOf("18\u2033 Beacon Supreme") < rhGross.indexOf("Ranch"));
+let reportThrew = null;
+try {
+  POS.showView("reports");
+  POS.showView("order");
+} catch (e) { reportThrew = e; }
+check("showView(reports) runs without throwing and fills the body",
+  reportThrew === null && byId["reports-body"].innerHTML.indexOf("Gross sales") !== -1,
+  reportThrew && reportThrew.message);
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);
