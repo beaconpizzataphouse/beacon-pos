@@ -809,5 +809,10 @@ check("report HTML shows the modifier-built order",
   POS.reportsHTML().indexOf("$113.37") !== -1 &&
   POS.reportsHTML().indexOf("18\u2033 Hawaiian") !== -1);
 
+/* the repo is public: the Reports code must never appear in the source */
+const appSrc = fs.readFileSync("app.js", "utf8");
+check("no 4-digit code string is hard-coded in app.js",
+  !/"[0-9]{4}"|'[0-9]{4}'/.test(appSrc));
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

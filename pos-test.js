@@ -428,14 +428,183 @@ POS.state.report.itemsMode = "gross";
 const rhGross = POS.reportsHTML();
 check("gross toggle reorders top items (Supreme first)",
   rhGross.indexOf("18\u2033 Beacon Supreme") < rhGross.indexOf("Ranch"));
+/* PIN lock: showView("reports") while locked opens the pad instead
+   of rendering, so unlock through the pad first. */
+POS.setReportsPin("1234");
+POS.openPinPad("unlock");
+"1234".split("").forEach(function (d) { POS.pinPress(d); });
 let reportThrew = null;
 try {
   POS.showView("reports");
-  POS.showView("order");
 } catch (e) { reportThrew = e; }
 check("showView(reports) runs without throwing and fills the body",
   reportThrew === null && byId["reports-body"].innerHTML.indexOf("Gross sales") !== -1,
   reportThrew && reportThrew.message);
+POS.showView("order");
+check("leaving Reports locks it again and clears the numbers",
+  POS.state.reportsUnlocked === false && byId["reports-body"].innerHTML === "");
+
+/* ---------- reports PIN lock ---------- */
+console.log("reports PIN lock:");
+/* clean slate: no code set, locked, on the order view */
+delete store[POS.REPORTS_PIN_KEY];
+POS.lockReports();
+POS.showView("order");
+check("no code set on a fresh iPad", POS.pinIsSet() === false);
+check("locked on a fresh iPad", POS.state.reportsUnlocked === false);
+
+/* tapping Reports with no code opens setup, shows no numbers */
+POS.showView("reports");
+check("Reports with no code opens the setup pad",
+  !!POS.state.pin && POS.state.pin.mode === "setup" && POS.state.pin.step === "new");
+check("report stays hidden until a code is set",
+  POS.state.view === "order" && byId["reports-body"].innerHTML === "");
+check("setup pad shows the set-code prompt",
+  byId["pin-title"].textContent === "Set a code" &&
+  byId["pin-sub"].textContent.indexOf("4-digit code") !== -1);
+
+/* setup: mismatched confirmation is rejected, no code saved */
+"1234".split("").forEach(function (d) { POS.pinPress(d); });
+check("setup first entry moves to confirm",
+  POS.state.pin.step === "confirm" && POS.state.pin.entry === "");
+"5678".split("").forEach(function (d) { POS.pinPress(d); });
+check("mismatched confirmation rejected, back to the first entry",
+  POS.pinIsSet() === false && POS.state.pin.step === "new" &&
+  POS.state.pin.error === "Codes didn't match, try again.");
+
+/* setup: matching confirmation saves the code and opens the report */
+"1234".split("").forEach(function (d) { POS.pinPress(d); });
+"1234".split("").forEach(function (d) { POS.pinPress(d); });
+check("matching confirmation sets the code and opens Reports",
+  POS.pinIsSet() === true && POS.state.reportsUnlocked === true &&
+  POS.state.view === "reports" && POS.state.pin === null &&
+  byId["reports-body"].innerHTML.indexOf("Gross sales") !== -1);
+check("report has a Change code button",
+  POS.reportsHTML().indexOf("Change code") !== -1);
+
+/* leaving locks again; tapping Reports asks for the code */
+POS.showView("order");
+check("leaving Reports locks it again", POS.state.reportsUnlocked === false);
+POS.showView("reports");
+check("Reports with a code set opens the unlock pad",
+  !!POS.state.pin && POS.state.pin.mode === "unlock" &&
+  POS.state.view === "order");
+"9999".split("").forEach(function (d) { POS.pinPress(d); });
+check("wrong code stays locked with an error",
+  POS.state.reportsUnlocked === false && POS.state.view === "order" &&
+  !!POS.state.pin && POS.state.pin.error === "Wrong code, try again." &&
+  POS.state.pin.entry === "");
+"1234".split("").forEach(function (d) { POS.pinPress(d); });
+check("right code opens the report",
+  POS.state.reportsUnlocked === true && POS.state.view === "reports" &&
+  POS.state.pin === null);
+
+/* backspace + cancel */
+POS.showView("order");
+POS.showView("reports");
+POS.pinPress("1"); POS.pinPress("2"); POS.pinBackspace();
+check("backspace drops the last digit", POS.state.pin.entry === "1");
+POS.pinCancel();
+check("cancel closes the pad and stays locked",
+  POS.state.pin === null && POS.state.reportsUnlocked === false &&
+  POS.state.view === "order");
+
+/* the Orders view stays unlocked — the crew needs it */
+let ordersThrew = null;
+try { POS.showView("orders"); } catch (e) { ordersThrew = e; }
+check("Orders view opens without a code",
+  ordersThrew === null && POS.state.view === "orders" && POS.state.pin === null);
+POS.showView("order");
+
+/* change code: wrong current code is rejected, code unchanged */
+POS.showView("reports");
+"1234".split("").forEach(function (d) { POS.pinPress(d); });
+POS.changePin();
+check("change code asks for the current code",
+  !!POS.state.pin && POS.state.pin.mode === "change" &&
+  POS.state.pin.step === "current");
+"9999".split("").forEach(function (d) { POS.pinPress(d); });
+check("wrong current code rejected",
+  POS.state.pin.step === "current" &&
+  POS.state.pin.error === "Wrong code, try again.");
+"1234".split("").forEach(function (d) { POS.pinPress(d); });
+check("right current code moves to the new code",
+  POS.state.pin.step === "new");
+"5678".split("").forEach(function (d) { POS.pinPress(d); });
+"0000".split("").forEach(function (d) { POS.pinPress(d); });
+check("mismatched new-code confirmation rejected",
+  POS.state.pin.step === "new" &&
+  POS.state.pin.error === "Codes didn't match, try again.");
+POS.pinCancel();
+POS.showView("order");
+POS.showView("reports");
+"1234".split("").forEach(function (d) { POS.pinPress(d); });
+check("old code still opens Reports after a failed change",
+  POS.state.reportsUnlocked === true && POS.state.view === "reports");
+
+/* change code: matching new code saves it, old code stops working */
+POS.changePin();
+"1234".split("").forEach(function (d) { POS.pinPress(d); });
+"5678".split("").forEach(function (d) { POS.pinPress(d); });
+"5678".split("").forEach(function (d) { POS.pinPress(d); });
+check("change code saves the new code and stays in Reports",
+  POS.state.pin === null && POS.state.view === "reports" &&
+  POS.state.reportsUnlocked === true);
+POS.showView("order");
+POS.showView("reports");
+"1234".split("").forEach(function (d) { POS.pinPress(d); });
+check("old code no longer works after a change",
+  POS.state.reportsUnlocked === false &&
+  POS.state.pin.error === "Wrong code, try again.");
+"5678".split("").forEach(function (d) { POS.pinPress(d); });
+check("new code opens Reports",
+  POS.state.reportsUnlocked === true && POS.state.view === "reports");
+
+/* code persists across a simulated reload (fresh context, same store) */
+function freshPOS(sharedStore) {
+  const freshById = {};
+  const freshDoc = {
+    readyState: "complete",
+    getElementById: function (id) {
+      if (!freshById[id]) freshById[id] = fakeEl(id);
+      return freshById[id];
+    },
+    addEventListener: function () {}
+  };
+  const fresh = {
+    console: console,
+    setTimeout: function () { return 0; },
+    clearTimeout: function () {},
+    Date: Date, JSON: JSON, Math: Math,
+    document: freshDoc,
+    localStorage: {
+      getItem: function (k) { return sharedStore[k] === undefined ? null : sharedStore[k]; },
+      setItem: function (k, v) { sharedStore[k] = String(v); },
+      removeItem: function (k) { delete sharedStore[k]; }
+    },
+    window: {}
+  };
+  fresh.window = fresh;
+  vm.createContext(fresh);
+  vm.runInContext(fs.readFileSync("menu.js", "utf8"), fresh);
+  vm.runInContext(fs.readFileSync("app.js", "utf8"), fresh);
+  return fresh.POS;
+}
+const POS2 = freshPOS(store);
+check("code persists across a simulated reload", POS2.pinIsSet() === true);
+check("fresh load starts locked", POS2.state.reportsUnlocked === false);
+POS2.openPinPad("unlock");
+"5678".split("").forEach(function (d) { POS2.pinPress(d); });
+check("reloaded app unlocks with the same code",
+  POS2.state.reportsUnlocked === true && POS2.state.view === "reports");
+
+/* the repo is public: the code must never appear in the source */
+const appSrc = fs.readFileSync("app.js", "utf8");
+check("no 4-digit code string is hard-coded in app.js",
+  !/"[0-9]{4}"|'[0-9]{4}'/.test(appSrc));
+check("PIN lives under the localStorage key only",
+  appSrc.indexOf("beacon-pos-reports-pin-v1") !== -1 &&
+  appSrc.indexOf("REPORTS_PIN_KEY") !== -1);
 
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

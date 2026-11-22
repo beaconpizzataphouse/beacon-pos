@@ -17,6 +17,12 @@
    Money is handled in integer cents everywhere to avoid float
    rounding. Tax is 6% (Square's Sales Tax rate in the export).
 
+   Reports are locked behind a 4-digit code (Vince's rule:
+   employees must not see the sales numbers). The code lives
+   ONLY in this iPad's localStorage — it is never in the source
+   (this repo is public) and never in any file. See the
+   "reports PIN lock" section below and the README.
+
    TO WIRE UP SQUARE LATER: replace sendOrder()'s localStorage
    save with a Square Orders API create-order call, and have the
    kitchen display (beacon-kds) read the same orders. The order
@@ -35,6 +41,9 @@
 
   var ORDERS_KEY = "beacon-pos-orders-v1";
   var COUNTER_KEY = "beacon-pos-counter-v1";
+  /* The Reports code lives here and ONLY here — localStorage on
+     this iPad, never in the source (this repo is public). */
+  var REPORTS_PIN_KEY = "beacon-pos-reports-pin-v1";
   var FIRST_ORDER_NUMBER = 101;
 
   var SIZE_LABELS = { "12": "12\u2033", "16": "16\u2033", "18": "18\u2033", "gf": "GF 10\u2033" };
@@ -53,7 +62,9 @@
     pendingPizza: null,     // pizza awaiting a size choice
     flow: null,             // active modifier flow, see startPizzaFlow/startWingFlow/startSandwichFlow/startPastaFlow
     lastOrder: null,
-    report: { period: "today", itemsMode: "gross", catsMode: "gross" }
+    report: { period: "today", itemsMode: "gross", catsMode: "gross" },
+    reportsUnlocked: false,  // in-memory only; leaving Reports (or reloading) locks it again
+    pin: null                // active PIN pad session, see openPinPad
   };
 
   /* ---------------- storage (safe when unavailable) ---------------- */
@@ -782,7 +793,8 @@
         barsHTML(r.buckets);
     }
     html += '<p class="report-note">Totals cover orders taken on this iPad only.</p>' +
-      '<p class="report-note">Card/cash and fees come with the Square link-up.</p>';
+      '<p class="report-note">Card/cash and fees come with the Square link-up.</p>' +
+      '<button type="button" class="report-change-pin" data-report-change-pin>Change code</button>';
     return html;
   }
 
@@ -792,6 +804,8 @@
   }
 
   function onReportsClick(e) {
+    var changeBtn = closestBtn(e.target, "data-report-change-pin");
+    if (changeBtn) { changePin(); return; }
     var periodBtn = closestBtn(e.target, "data-report-period");
     if (periodBtn) {
       state.report.period = periodBtn.getAttribute("data-report-period");
@@ -809,6 +823,204 @@
       state.report.catsMode = catsBtn.getAttribute("data-report-cats-mode");
       renderReports();
     }
+  }
+
+  /* ---------------- reports PIN lock ----------------
+     Vince's rule: employees must not see the sales numbers, so
+     Reports asks for a 4-digit code every time it opens. The code
+     lives ONLY in this iPad's localStorage (REPORTS_PIN_KEY) — it
+     is never in the source (this repo is public) and never in any
+     file. First tap on Reports with no code set asks to set one
+     (enter twice to confirm). Once set, every tap asks for it; a
+     wrong code just says "Wrong code, try again" and stays
+     locked — no lockout, no hint. "Change code" inside Reports
+     asks for the current code, then the new one twice. There is
+     deliberately NO in-app reset — a forgotten code is reset by
+     clearing the site's saved data in Safari settings (see
+     README). The unlock itself is in-memory only
+     (state.reportsUnlocked), so leaving Reports — or reloading —
+     locks it again, and showView clears the report HTML from the
+     page on the way out so no numbers linger in the DOM. The
+     Orders view stays unlocked; the crew needs it. */
+  function pinIsSet() {
+    var v = lsGet(REPORTS_PIN_KEY);
+    return typeof v === "string" && /^\d{4}$/.test(v);
+  }
+
+  function pinMatches(code) {
+    return lsGet(REPORTS_PIN_KEY) === code;
+  }
+
+  /* Store a 4-digit code. Only called with a code the user just
+     typed twice (setup / change) or by the test API. */
+  function setPin(code) {
+    if (typeof code !== "string" || !/^\d{4}$/.test(code)) return;
+    lsSet(REPORTS_PIN_KEY, code);
+  }
+
+  function lockReports() {
+    state.reportsUnlocked = false;
+  }
+
+  var PIN_PROMPTS = {
+    setup: {
+      "new": ["Set a code", "Pick a 4-digit code for Reports. Only people with the code can see the sales numbers."],
+      "confirm": ["Set a code", "Enter it again to confirm."]
+    },
+    unlock: {
+      "enter": ["Reports", "Enter the 4-digit code to see the sales numbers."]
+    },
+    change: {
+      "current": ["Change code", "Enter your current code."],
+      "new": ["Change code", "Enter a new 4-digit code."],
+      "confirm": ["Change code", "Enter the new code again."]
+    }
+  };
+
+  /* mode: "setup" (no code yet) | "unlock" (code set) | "change".
+     Steps: setup "new" -> "confirm"; unlock "enter"; change
+     "current" -> "new" -> "confirm". */
+  function openPinPad(mode) {
+    var step = mode === "change" ? "current" : (mode === "setup" ? "new" : "enter");
+    state.pin = { mode: mode, step: step, entry: "", first: "", error: "" };
+    renderPinPad();
+  }
+
+  function closePinPad() {
+    state.pin = null;
+    renderPinPad();
+  }
+
+  function renderPinPad() {
+    var modal = el("pin-modal");
+    var p = state.pin;
+    if (!p) {
+      if (modal) modal.hidden = true;
+      return;
+    }
+    if (modal) modal.hidden = false;
+    var prompt = (PIN_PROMPTS[p.mode] || {})[p.step] || PIN_PROMPTS.unlock.enter;
+    var title = el("pin-title"), sub = el("pin-sub"),
+        dots = el("pin-dots"), err = el("pin-error");
+    if (title) title.textContent = prompt[0];
+    if (sub) sub.textContent = prompt[1];
+    if (dots) {
+      var html = "";
+      for (var i = 0; i < 4; i++) {
+        html += '<span class="pin-dot' + (i < p.entry.length ? " filled" : "") + '"></span>';
+      }
+      dots.innerHTML = html;
+    }
+    if (err) err.textContent = p.error || "";
+  }
+
+  /* The entry just hit 4 digits — evaluate it for the current
+     mode/step. Success closes the pad (and opens Reports for
+     setup/unlock); failure clears the entry and shows an error. */
+  function pinSubmit() {
+    var p = state.pin;
+    if (!p || p.entry.length !== 4) return;
+    var code = p.entry;
+    if (p.mode === "unlock") {
+      if (pinMatches(code)) {
+        state.reportsUnlocked = true;
+        closePinPad();
+        showView("reports");
+      } else {
+        p.entry = "";
+        p.error = "Wrong code, try again.";
+      }
+      return;
+    }
+    if (p.mode === "setup") {
+      if (p.step === "new") {
+        p.first = code;
+        p.entry = "";
+        p.step = "confirm";
+        return;
+      }
+      if (code === p.first) {
+        setPin(code);
+        state.reportsUnlocked = true;
+        closePinPad();
+        showView("reports");
+      } else {
+        p.entry = "";
+        p.first = "";
+        p.step = "new";
+        p.error = "Codes didn't match, try again.";
+      }
+      return;
+    }
+    /* change */
+    if (p.step === "current") {
+      if (pinMatches(code)) {
+        p.entry = "";
+        p.step = "new";
+      } else {
+        p.entry = "";
+        p.error = "Wrong code, try again.";
+      }
+      return;
+    }
+    if (p.step === "new") {
+      p.first = code;
+      p.entry = "";
+      p.step = "confirm";
+      return;
+    }
+    if (code === p.first) {
+      setPin(code);
+      closePinPad();
+      /* already unlocked — stay in the reports view */
+    } else {
+      p.entry = "";
+      p.first = "";
+      p.step = "new";
+      p.error = "Codes didn't match, try again.";
+    }
+  }
+
+  function pinPress(d) {
+    var p = state.pin;
+    if (!p) return;
+    if (typeof d !== "string" || d.length !== 1 || d < "0" || d > "9") return;
+    if (p.entry.length >= 4) return;
+    p.entry += d;
+    p.error = "";
+    if (p.entry.length === 4) pinSubmit();
+    renderPinPad();
+  }
+
+  function pinBackspace() {
+    var p = state.pin;
+    if (!p || !p.entry) return;
+    p.entry = p.entry.slice(0, -1);
+    renderPinPad();
+  }
+
+  function pinCancel() {
+    closePinPad();
+  }
+
+  /* The one entry point to Reports: unlocked already, show it;
+     otherwise prompt — setup when no code exists, unlock when one
+     does. */
+  function openReports() {
+    if (state.reportsUnlocked) { showView("reports"); return; }
+    openPinPad(pinIsSet() ? "unlock" : "setup");
+  }
+
+  function changePin() {
+    openPinPad("change");
+  }
+
+  function onPinClick(e) {
+    var key = closestBtn(e.target, "data-pin-key");
+    if (!key) return;
+    var k = key.getAttribute("data-pin-key");
+    if (k === "back") pinBackspace();
+    else pinPress(k);
   }
 
   /* ---------------- DOM rendering ---------------- */
@@ -860,6 +1072,17 @@
   }
 
   function showView(view) {
+    if (view === "reports" && !state.reportsUnlocked) {
+      openReports();
+      return;
+    }
+    if (view !== "reports") {
+      /* Leaving Reports locks it again and clears the numbers
+         from the page, so they don't linger in the DOM. */
+      state.reportsUnlocked = false;
+      var rb = el("reports-body");
+      if (rb) rb.innerHTML = "";
+    }
     state.view = view;
     var ov = el("order-view"), xv = el("orders-view"), rv = el("reports-view"), tabs = el("tabs");
     if (ov) ov.hidden = view !== "order";
@@ -1496,7 +1719,9 @@
         sizeModal = el("size-modal"), confirmModal = el("confirm-modal"),
         flowModal = el("flow-modal"), ordersList = el("orders-list"),
         reportsBtn = el("reports-btn"), reportsBack = el("reports-back-btn"),
-        reportsBody = el("reports-body");
+        reportsBody = el("reports-body"),
+        pinKeys = el("pin-keys"), pinCancelBtn = el("pin-cancel"),
+        pinModal = el("pin-modal");
 
     if (tabs) tabs.addEventListener("click", onTabsClick);
     if (grid) grid.addEventListener("click", onGridClick);
@@ -1517,6 +1742,11 @@
     if (reportsBtn) reportsBtn.addEventListener("click", function () { showView("reports"); });
     if (reportsBack) reportsBack.addEventListener("click", function () { showView("order"); });
     if (reportsBody) reportsBody.addEventListener("click", onReportsClick);
+    if (pinKeys) pinKeys.addEventListener("click", onPinClick);
+    if (pinCancelBtn) pinCancelBtn.addEventListener("click", pinCancel);
+    if (pinModal) pinModal.addEventListener("click", function (e) {
+      if (e.target === pinModal) pinCancel();
+    });
     if (sizeOpts) sizeOpts.addEventListener("click", onSizeOptionsClick);
     if (sizeCancel) sizeCancel.addEventListener("click", closeSizePicker);
     if (confirmDone) confirmDone.addEventListener("click", hideConfirm);
@@ -1560,6 +1790,11 @@
     reportOrders: reportOrders, orderGross: orderGross,
     categoryForItem: categoryForItem, computeReport: computeReport,
     reportsHTML: reportsHTML, renderReports: renderReports,
+    REPORTS_PIN_KEY: REPORTS_PIN_KEY,
+    pinIsSet: pinIsSet, setReportsPin: setPin,
+    openReports: openReports, openPinPad: openPinPad, closePinPad: closePinPad,
+    pinPress: pinPress, pinBackspace: pinBackspace, pinCancel: pinCancel,
+    changePin: changePin, lockReports: lockReports,
     nextOrderNumber: nextOrderNumber,
     tabsHTML: tabsHTML, gridHTML: gridHTML, drinkJumpHTML: drinkJumpHTML,
     cartLinesHTML: cartLinesHTML, ordersHTML: ordersHTML,

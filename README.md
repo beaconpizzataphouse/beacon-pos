@@ -21,8 +21,8 @@ order only. There is no payment flow here, by design.
 | `modifiers.json` | Modifier lists read from the Square Dashboard (27 sets, 562 options with prices) |
 | `modifiers.js` | Modifier data — **generated, do not hand-edit** (see below) |
 | `generate_modifiers.py` | Builds `modifiers.js` from `modifiers.json` |
-| `pos-test.js` | Regression harness (95 checks): menu, cart, tax, orders, reports — run with `node pos-test.js` |
-| `pos-modifiers-test.js` | Modifier-flow harness (217 checks): topping/wing/sandwich/pasta math, flows, merge rules, report modifier revenue — run with `node pos-modifiers-test.js` |
+| `pos-test.js` | Regression harness (125 checks): menu, cart, tax, orders, reports, Reports PIN lock — run with `node pos-test.js` |
+| `pos-modifiers-test.js` | Modifier-flow harness (218 checks): topping/wing/sandwich/pasta math, flows, merge rules, report modifier revenue — run with `node pos-modifiers-test.js` |
 
 ## Modifier source
 
@@ -130,6 +130,29 @@ no orders it shows zeros and "No orders sent yet."
   payment-type split yet, and the "vs previous Saturday"
   comparison waits until there is history to compare.
 
+### Reports PIN lock
+
+Employees must not see the sales numbers, so Reports is locked
+behind a 4-digit code (Vince, Nov 22 2026):
+
+- The code lives ONLY in the iPad's localStorage — it is never
+  in the source (this repo is public) and never in any file. The
+  test suites scan `app.js` for any hard-coded 4-digit string and
+  fail if one appears.
+- First tap on Reports asks to SET a code: enter it twice to
+  confirm, on a big numeric keypad. Then the report opens.
+- Once set, every tap on Reports asks for the code first. A wrong
+  code just says "Wrong code, try again" — no lockout, no hint.
+- **Change code** at the bottom of the report asks for the current
+  code, then the new one twice.
+- Leaving Reports locks it again (and clears the numbers from the
+  page), and so does reloading — the unlock is in-memory only.
+  The Orders view stays unlocked; the crew needs it.
+- There is deliberately NO in-app reset. A forgotten code is reset
+  by clearing the site's saved data in Safari settings (Settings >
+  Safari > Advanced > Website Data), then setting a new code on
+  the next tap of Reports.
+
 ## Next steps (not built yet)
 
 - **Pasta/sandwich extras Square doesn't price:** the sets have no
@@ -225,7 +248,8 @@ Seltzers, Cider, NA Beer, Soda & More, Kegs).
 5. **Reports** (top right) shows gross sales, order count, and
    average sale for Today or This week, plus top items, top
    categories, and sales by hour/day — all from the orders saved
-   on this iPad. See "Sales report" above.
+   on this iPad. It asks for a 4-digit code first (see "Reports
+   PIN lock" above); employees can't see the numbers without it.
 
 ## Wiring it up later (Square)
 
