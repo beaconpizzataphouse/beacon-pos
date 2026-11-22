@@ -1,1 +1,2327 @@
-{"anomalies":["left_10 specialty half 'Chicken Bacon Ranch' is $310.00 in Square; every other size/side is $2.60-$3.25 (Right 10 is $3.10). Almost certainly a typo in Square. Recorded as 310.00 here; fix in Square only when Vince confirms, then update this file.","half_half_wings '1/2 Vinces Wings' has a blank price field in Square (all other half flavors $0.00). Recorded as null.","Anchovies are a flat $4.50 in every whole-pizza and half-pizza list, but $4.00 in extra_toppings.","Extra Toppings set has no Green Olives and no Green Onions, unlike the per-size whole-pizza lists."],"display_name_fixes":{"Classic Pepperonii":"Classic Pepperoni","Green Oniond":"Green Onions","Mediteranean":"Mediterranean","Peperoncini":"Pepperoncini","Pepperoncinni":"Pepperoncini"},"notes":["Prices are dollars as shown in Square. null price = blank price field in Square (treat as 0.00).","Half-pizza sets (left_*/right_*): Square prefixes every option 'Left ' or 'Right '. Prefixes are stripped here; the app knows which side it is showing. Each half set = 29 toppings first, then 13 specialty-pizza halves.","Square spelling quirks are preserved in the data; use display_name_fixes for what the screen shows.","Whole-pizza topping prices do NOT rise smoothly with size in Square (e.g. Extra Cheese 1.00/1.25/0.75/1.00 across 10/12/16/18). Recorded as shown; do not 'smooth' them.","Left and right half lists are mostly identical but differ on some prices (see the Square read). Both sides are recorded in full here."],"sets":{"add_dry_rub":[["Add spicy dry rub",0.0]],"cheese":[["American",0.5],["Cheddar",0.5],["Cream Cheese",0.5],["Muenster",0.5],["Pepper Jack",0.5],["Provolone",0.5],["Swiss",0.5]],"choice_of_sauce":[["Red Sauce",0.0],["White Sauce",0.5],["Pink Sauce",1.0]],"common":[["Dairy Allergy",0.0],["Gluten Allergy",0.0]],"extra_toppings":[["Artichoke",0.6],["Anchovies",4.0],["Bacon",1.5],["Banana Peppers",0.6],["Basil",0.6],["Broccoli",0.75],["Chicken",2.0],["Extra Cheese",1.0],["Feta",0.6],["Garlic",0.6],["Green Peppers",0.6],["Ground Beef W/ Taco Seasoning",1.75],["Ham",1.5],["Italian Sausage",1.5],["Jalapeños",0.6],["Mushrooms",0.6],["Olives",0.6],["Onions",0.6],["Pepperoni",1.5],["Peperoncini",0.6],["Pineapple",0.6],["Pink Sauce",0.5],["Red sauce",0.25],["Salami",1.75],["Spinach",0.6],["Tomatoes",0.6],["White sauce",0.5]],"flats_drums":[["All Flats",3.0],["All Drums",0.0]],"half_half_wings":[["1/2 Plain",0.0],["1/2 Spicy Dry rub",0.0],["1/2 Buffalo",0.0],["1/2 Carolina",0.0],["1/2 Ranch Garlic",0.0],["1/2 Louisiana",0.0],["1/2 BBQ",0.0],["1/2 Vinces Wings",null]],"left_10":[["Artichoke",0.35],["Anchovies",4.5],["Bacon",0.7],["Basil",0.35],["Banana Peppers",0.35],["Broccoli",0.35],["Chicken",1.0],["Extra Cheese",0.3],["Feta",0.35],["Garlic",0.3],["Green Olives",0.35],["Green Onions",0.35],["Green Peppers",0.35],["Ground Beef w/ taco seasoning",1.0],["Ham",0.75],["Italian Sausage",0.75],["Jalapeños",0.35],["Mushrooms",0.35],["Onions",0.35],["Olives",0.35],["Pepperoni",0.75],["Pepperoncini",0.35],["Pineapple",0.35],["Pink Sauce",0.25],["Red sauce",0.2],["Salami",1.0],["Spinach",0.35],["Tomatoes",0.35],["White Sauce",0.2],["BBQ Chicken",3.1],["Beacon Supreme",4.6],["Bernie",2.6],["Classic Pepperoni",1.1],["Hawaiian",2.1],["Jibe",2.6],["Mediteranean",3.1],["Spicy Luau",2.6],["Tree Hugger",2.1],["Ultimate Cheese",0.5],["Mexican Pizza",2.6],["Buffalo Chicken Pizza",3.1],["Chicken Bacon Ranch",310.0]],"left_12":[["Artichoke",0.45],["Anchovies",4.5],["Bacon",1.0],["Banana Peppers",0.45],["Basil",0.45],["Broccoli",0.45],["Chicken",1.0],["Extra Cheese",0.3],["Feta",0.45],["Garlic",0.35],["Green Olives",0.45],["Green Onions",0.45],["Green Peppers",0.45],["Ground Beef w/ taco seasoning",1.0],["Ham",1.0],["Italian Sausage",1.0],["Jalapeños",0.45],["Mushrooms",0.45],["Onions",0.45],["Olives",0.45],["Pepperoni",1.0],["Pepperoncini",0.45],["Pineapple",0.45],["Pink Sauce",0.35],["Red Sauce",0.25],["Salami",1.1],["Spinach",0.45],["Tomatoes",0.45],["White Sauce",0.3],["BBQ Chicken",2.6],["Beacon Supreme",4.6],["Bernie",2.6],["Classic Pepperoni",1.1],["Hawaiian",2.1],["Jibe",2.1],["Mediterranean",3.1],["Spicy Luau",2.6],["Tree Hugger",2.1],["Ultimate Cheese",0.5],["Mexican Pizza",2.6],["Buffalo Chicken Pizza",2.6],["Chicken Bacon Ranch",2.6]],"left_16":[["Artichoke",0.7],["Anchovies",4.5],["Bacon",1.5],["Banana Peppers",0.7],["Basil",0.7],["Broccoli",0.7],["Chicken",1.5],["Extra Cheese",0.35],["Feta",0.7],["Garlic",0.4],["Green Olives",0.7],["Green Onions",0.7],["Green Peppers",0.7],["Ground Beef w/ taco seasoning",1.0],["Ham",1.5],["Italian Sausage",1.5],["Jalapenos",0.7],["Mushrooms",0.7],["Onions",0.7],["Olives",0.7],["Pepperoni",1.5],["Pepperoncini",0.7],["Pineapple",0.7],["Pink Sauce",0.4],["Red Sauce",0.35],["Salami",1.6],["Spinach",0.7],["Tomatoes",0.7],["White Sauce",0.35],["BBQ Chicken",3.2],["Beacon Supreme",4.7],["Bernie",2.7],["Classic Pepperoni",1.2],["Hawaiian",2.2],["Jibe",2.7],["Mediterranean",3.2],["Spicy Luau",2.7],["Tree Hugger",2.2],["Ultimate Cheese",0.5],["Mexican Pizza",2.7],["Buffalo Chicken Pizza",3.2],["Chicken Bacon Ranch",3.2]],"left_18":[["Artichoke",0.8],["Anchovies",4.5],["Bacon",2.0],["Banana Peppers",0.8],["Basil",0.8],["Broccoli",0.8],["Chicken",2.0],["Extra Cheese",0.4],["Feta",0.8],["Garlic",0.5],["Green Olives",0.8],["Green Onions",0.8],["Green Peppers",0.8],["Ground Beef w/ taco seasoning",2.0],["Ham",2.0],["Italian Sausage",2.0],["Jalapenos",0.8],["Mushrooms",0.8],["Onions",0.8],["Olives",0.8],["Pepperoni",2.0],["Pepperoncini",0.8],["Pineapple",0.8],["Pink Sauce",0.4],["Red Sauce",0.35],["Salami",2.15],["Spinach",0.8],["Tomatoes",0.8],["White Sauce",0.35],["BBQ Chicken",3.25],["Beacon Supreme",4.75],["Bernie",2.75],["Classic Pepperoni",1.25],["Hawaiian",2.25],["Jibe",3.25],["Mediterranean",3.25],["Spicy Luau",2.75],["Tree Hugger",2.25],["Ultimate Cheese",0.5],["Mexican Pizza",2.75],["Buffalo Chicken Pizza",3.25],["Chicken Bacon Ranch",3.25]],"meats":[["Bacon",2.5],["Chicken Breast",2.0],["Ham",2.0],["Pepperoni",2.0],["Salami",2.0],["Turkey Breast",2.0],["Prime Rib",9.0]],"pasta_addins":[["Artichoke",0.5],["Baby Spinach",0.5],["Bacon",1.0],["Banana Pepper",0.5],["Bell Peppers",0.5],["Broccoli",0.6],["Chicken",1.5],["Garlic",0.5],["Italian Sausage",1.0],["Mushrooms",0.5],["Meatballs",1.5],["Olives",0.5],["Onions",0.5],["Pepperoncini",0.5],["Tomatoes",0.5],["Anchovies",4.5],["Jalapenos",0.5]],"pasta_noodle":[["Angel Hair",0.0],["Spaghetti",0.0],["Gluten Free",0.0]],"pasta_sauce":[["Red Sauce",0.0],["Alfredo",0.0],["Pink Sauce",1.0]],"right_10":[["Artichoke",0.35],["Anchovies",4.5],["Bacon",0.75],["Banana Peppers",0.35],["Basil",0.35],["Broccoli",0.75],["Chicken",1.0],["Extra Cheese",0.2],["Feta",0.35],["Garlic",0.35],["Green Olives",0.35],["Green Onions",0.35],["Green Peppers",0.35],["Ground Beef w/ taco seasoning",0.85],["Ham",0.75],["Italian Sausage",0.75],["Jalapeños",0.35],["Mushrooms",0.35],["Onions",0.35],["Olives",0.35],["Pepperoni",0.75],["Pepperoncini",0.35],["Pineapple",0.35],["Red Sauce",0.2],["Pink Sauce",0.25],["Salami",0.8],["Spinach",0.35],["Tomatoes",0.35],["White Sauce",0.25],["BBQ Chicken",2.6],["Beacon Supreme",4.6],["Bernie",2.6],["Classic Pepperonii",1.1],["Hawaiian",2.1],["Jibe",2.6],["Mediterranean",3.1],["Spicy Luau",2.6],["Tree Hugger",2.1],["Ultimate Cheese",0.5],["Mexican Pizza",2.6],["Buffalo Chicken Pizza",3.1],["Chicken Bacon Ranch",3.1]],"right_12":[["Artichoke",0.45],["Anchovies",4.5],["Bacon",1.0],["Banana Peppers",0.45],["Basil",0.45],["Broccoli",0.45],["Chicken",1.25],["Extra Cheese",0.3],["Feta",0.45],["Garlic",0.3],["Green Olives",0.45],["Green Onions",0.45],["Green Peppers",0.45],["Ground Beef w/ taco seasoning",1.0],["Ham",0.8],["Italian Sausage",1.0],["Jalapenos",0.45],["Mushrooms",0.45],["Onions",0.45],["Olives",0.45],["Pepperoni",1.0],["Pepperoncini",0.45],["Pineapple",0.8],["Pink Sauce",0.35],["Red Sauce",0.3],["Salami",1.1],["Spinach",0.45],["Tomatoes",0.45],["White Sauce",0.3],["BBQ Chicken",3.1],["Beacon Supreme",4.6],["Bernie",2.6],["Classic Pepperoni",1.1],["Hawaiian",2.1],["Jibe",2.6],["Mediterranean",3.1],["Spicy Luau",2.6],["Tree Hugger",2.1],["Ultimate Cheese",0.5],["Mexican Pizza",2.6],["Buffalo Chicken Pizza",3.1],["Chicken Bacon Ranch",3.1]],"right_16":[["Artichoke",0.7],["Anchovies",4.5],["Bacon",1.5],["Banana Peppers",0.7],["Basil",0.7],["Broccoli",0.7],["Chicken",1.5],["Extra Cheese",0.35],["Feta",0.7],["Garlic",0.4],["Green Olives",0.7],["Green Onions",0.7],["Green Peppers",0.7],["Ground Beef w/ taco seasoning",1.5],["Ham",1.5],["Italian Sausage",1.5],["Jalapenos",0.7],["Mushrooms",0.7],["Onions",0.7],["Olives",0.7],["Pepperoni",1.5],["Pepperoncini",0.7],["Pineapple",0.7],["Pink Sauce",0.4],["Red Sauce",0.35],["Salami",1.6],["Spinach",0.7],["Tomatoes",0.7],["White Sauce",0.35],["BBQ Chicken",3.2],["Beacon Supreme",4.7],["Bernie",2.7],["Classic Pepperoni",1.2],["Hawaiian",2.2],["Jibe",2.7],["Mediterranean",3.2],["Spicy Luau",2.7],["Tree Hugger",2.2],["Ultimate Cheese",0.5],["Mexican Pizza",2.7],["Buffalo Chicken Pizza",3.2],["Chicken Bacon Ranch",3.2]],"right_18":[["Artichoke",0.8],["Anchovies",4.5],["Bacon",2.0],["Banana Peppers",0.8],["Basil",0.8],["Broccoli",0.8],["Chicken",2.0],["Extra Cheese",0.4],["Feta",0.8],["Garlic",0.5],["Green Olives",0.8],["Green Onions",0.8],["Green Peppers",0.8],["Ground Beef w/ taco seasoning",2.0],["Ham",2.0],["Italian Sausage",2.0],["Jalapenos",0.8],["Mushrooms",0.8],["Onions",0.8],["Olives",0.8],["Pepperoni",2.0],["Pepperoncini",0.8],["Pineapple",1.1],["Pink Sauce",0.45],["Red Sauce",0.4],["Salami",2.1],["Spinach",0.8],["Tomatoes",0.8],["White Sauce",0.4],["BBQ Chicken",3.25],["Beacon Supreme",4.75],["Bernie",2.75],["Classic Pepperoni",1.25],["Hawaiian",2.25],["Jibe",3.25],["Mediterranean",3.25],["Spicy Luau",2.75],["Tree Hugger",2.25],["Ultimate Cheese",0.5],["Mexican Pizza",2.75],["Buffalo Chicken Pizza",3.25],["Chicken Bacon Ranch",3.25]],"veggie_addons":[["Lettuce",0.6],["Spinach",0.6],["Tomatoes",0.6],["Red Onions",0.6],["Pineapple",0.6],["Mushrooms",0.6],["Black Olives",0.6],["Bell Peppers",0.6],["Banana Peppers",0.6],["Jalapenos",0.6],["Pepperoncinis",0.6],["Pickles",0.6],["Cucumbers",0.6]],"whole_10":[["Artichoke",0.6],["Anchovies",4.5],["Bacon",1.5],["Banana Peppers",0.6],["Basil",0.6],["Broccoli",0.6],["Chicken",2.0],["Extra Cheese",1.0],["Feta",0.6],["Garlic",0.6],["Green Olives",0.6],["Green Oniond",0.6],["Green Peppers",0.6],["Ground Beef w/ taco seasoning",1.5],["Ham",1.5],["Italian Sausage",1.5],["Jalapeños",0.6],["Mushrooms",0.6],["Olives",0.6],["Onions",0.6],["Pepperoni",1.5],["Pepperoncini",0.6],["Pineapple",0.6],["Pink Sauce",0.5],["Red sauce",0.25],["Salami",1.5],["Spinach",0.6],["Tomatoes",0.6],["White sauce",0.5]],"whole_12":[["Artichoke",0.75],["Anchovies",4.5],["Bacon",1.5],["Banana Peppers",0.75],["Basil",0.75],["Broccoli",0.75],["Chicken",1.5],["Extra Cheese",1.25],["Feta",0.75],["Garlic",0.5],["Green Olives",0.75],["Green Onions",0.75],["Green Peppers",0.75],["Ground Beef w/ taco seasoning",1.5],["Ham",1.5],["Italian Sausage",1.5],["Jalapeños",0.75],["Mushrooms",0.75],["Onions",0.75],["Olives",0.75],["Pepperoni",1.5],["Pepperoncinni",0.75],["Pineapple",0.75],["Pink Sauce",0.6],["Red Sauce",0.25],["Salami",1.5],["Spinach",0.75],["Tomatoes",0.75],["White Sauce",0.5]],"whole_16":[["Artichoke",1.25],["Anchovies",4.5],["Bacon",2.0],["Banana Peppers",1.25],["Basil",1.25],["Broccoli",1.25],["Chicken",2.75],["Extra Cheese",0.75],["Feta",1.25],["Garlic",0.75],["Green Olives",1.25],["Green Onions",1.25],["Green Peppers",1.25],["Ground Beef w/ taco seasoning",2.0],["Ham",2.0],["Italian Sausage",2.0],["Jalapeños",1.25],["Mushrooms",1.25],["Olives",1.25],["Onions",1.25],["Pepperoni",2.0],["Pepperoncinni",1.25],["Pineapple",1.25],["Pink Sauce",0.75],["Red Sauce",0.25],["Salami",2.0],["Spinach",1.25],["Tomatoes",1.25],["White Sauce",0.75]],"whole_18":[["Artichoke",1.5],["Anchovies",4.5],["Bacon",2.5],["Basil",1.5],["Banana Peppers",1.5],["Broccoli",1.5],["Chicken",3.0],["Extra Cheese",1.0],["Feta",1.5],["Garlic",1.0],["Green Olives",1.5],["Green Onions",1.5],["Green Peppers",1.5],["Ground Beef w/ taco seasoning",2.5],["Ham",2.5],["Italian Sausage",2.5],["Jalapeños",1.5],["Mushrooms",1.5],["Olives",1.5],["Onions",1.5],["Pepperoni",2.5],["Pepperoncinni",1.5],["Pineapple",1.5],["Pink Sauce",1.0],["Red Sauce",0.75],["Salami",2.5],["Spinach",1.5],["Tomatoes",1.5],["White Sauce",1.0]],"wing_flavors":[["Buffalo",0.0],["Louisiana",0.0],["Spicy Dry Rub",0.0],["Carolina",0.0],["Ranch Garlic",0.0],["BBQ",0.0],["Vince's Wings",0.0],["Plain",0.0],["1/2 &1/2",0.0]],"wing_sauce_side":[["Ranch on the side",0.15],["Blue Cheese on the side",0.15],["BBQ on the side",0.15],["Carolina on the side",0.15],["Buffalo on the side",0.15],["Louisiana on the side",0.15]],"wing_side":[["No Celery",0.0],["Celery",0.0]]},"source":"Square Dashboard > Items > Modifiers for Beacon Pizza and Tap House, read 2026-11-22 ~00:06 PST by browser (read-only, nothing changed). 27 sets, 562 options. (The browser's report said 28 sets, but the sets it listed number 27; the 562 option count matches exactly.)"}
+{
+ "anomalies": [
+  "left_10 specialty half 'Chicken Bacon Ranch' is $310.00 in Square; every other size/side is $2.60-$3.25 (Right 10 is $3.10). Almost certainly a typo in Square. OUR data uses $3.10 (Vince, 2026-11-22: leave Square alone, fix it in ours). Square itself still shows $310.00 and has NOT been changed.",
+  "half_half_wings '1/2 Vinces Wings' has a blank price field in Square (all other half flavors $0.00). Recorded as null.",
+  "Anchovies are a flat $4.50 in every whole-pizza and half-pizza list, but $4.00 in extra_toppings.",
+  "Extra Toppings set has no Green Olives and no Green Onions, unlike the per-size whole-pizza lists."
+ ],
+ "display_name_fixes": {
+  "Classic Pepperonii": "Classic Pepperoni",
+  "Green Oniond": "Green Onions",
+  "Mediteranean": "Mediterranean",
+  "Peperoncini": "Pepperoncini",
+  "Pepperoncinni": "Pepperoncini"
+ },
+ "notes": [
+  "Prices are dollars as shown in Square. null price = blank price field in Square (treat as 0.00).",
+  "Half-pizza sets (left_*/right_*): Square prefixes every option 'Left ' or 'Right '. Prefixes are stripped here; the app knows which side it is showing. Each half set = 29 toppings first, then 13 specialty-pizza halves.",
+  "Square spelling quirks are preserved in the data; use display_name_fixes for what the screen shows.",
+  "Whole-pizza topping prices do NOT rise smoothly with size in Square (e.g. Extra Cheese 1.00/1.25/0.75/1.00 across 10/12/16/18). Recorded as shown; do not 'smooth' them.",
+  "Left and right half lists are mostly identical but differ on some prices (see the Square read). Both sides are recorded in full here."
+ ],
+ "sets": {
+  "add_dry_rub": [
+   [
+    "Add spicy dry rub",
+    0.0
+   ]
+  ],
+  "cheese": [
+   [
+    "American",
+    0.5
+   ],
+   [
+    "Cheddar",
+    0.5
+   ],
+   [
+    "Cream Cheese",
+    0.5
+   ],
+   [
+    "Muenster",
+    0.5
+   ],
+   [
+    "Pepper Jack",
+    0.5
+   ],
+   [
+    "Provolone",
+    0.5
+   ],
+   [
+    "Swiss",
+    0.5
+   ]
+  ],
+  "choice_of_sauce": [
+   [
+    "Red Sauce",
+    0.0
+   ],
+   [
+    "White Sauce",
+    0.5
+   ],
+   [
+    "Pink Sauce",
+    1.0
+   ]
+  ],
+  "common": [
+   [
+    "Dairy Allergy",
+    0.0
+   ],
+   [
+    "Gluten Allergy",
+    0.0
+   ]
+  ],
+  "extra_toppings": [
+   [
+    "Artichoke",
+    0.6
+   ],
+   [
+    "Anchovies",
+    4.0
+   ],
+   [
+    "Bacon",
+    1.5
+   ],
+   [
+    "Banana Peppers",
+    0.6
+   ],
+   [
+    "Basil",
+    0.6
+   ],
+   [
+    "Broccoli",
+    0.75
+   ],
+   [
+    "Chicken",
+    2.0
+   ],
+   [
+    "Extra Cheese",
+    1.0
+   ],
+   [
+    "Feta",
+    0.6
+   ],
+   [
+    "Garlic",
+    0.6
+   ],
+   [
+    "Green Peppers",
+    0.6
+   ],
+   [
+    "Ground Beef W/ Taco Seasoning",
+    1.75
+   ],
+   [
+    "Ham",
+    1.5
+   ],
+   [
+    "Italian Sausage",
+    1.5
+   ],
+   [
+    "Jalape\u00f1os",
+    0.6
+   ],
+   [
+    "Mushrooms",
+    0.6
+   ],
+   [
+    "Olives",
+    0.6
+   ],
+   [
+    "Onions",
+    0.6
+   ],
+   [
+    "Pepperoni",
+    1.5
+   ],
+   [
+    "Peperoncini",
+    0.6
+   ],
+   [
+    "Pineapple",
+    0.6
+   ],
+   [
+    "Pink Sauce",
+    0.5
+   ],
+   [
+    "Red sauce",
+    0.25
+   ],
+   [
+    "Salami",
+    1.75
+   ],
+   [
+    "Spinach",
+    0.6
+   ],
+   [
+    "Tomatoes",
+    0.6
+   ],
+   [
+    "White sauce",
+    0.5
+   ]
+  ],
+  "flats_drums": [
+   [
+    "All Flats",
+    3.0
+   ],
+   [
+    "All Drums",
+    0.0
+   ]
+  ],
+  "half_half_wings": [
+   [
+    "1/2 Plain",
+    0.0
+   ],
+   [
+    "1/2 Spicy Dry rub",
+    0.0
+   ],
+   [
+    "1/2 Buffalo",
+    0.0
+   ],
+   [
+    "1/2 Carolina",
+    0.0
+   ],
+   [
+    "1/2 Ranch Garlic",
+    0.0
+   ],
+   [
+    "1/2 Louisiana",
+    0.0
+   ],
+   [
+    "1/2 BBQ",
+    0.0
+   ],
+   [
+    "1/2 Vinces Wings",
+    null
+   ]
+  ],
+  "left_10": [
+   [
+    "Artichoke",
+    0.35
+   ],
+   [
+    "Anchovies",
+    4.5
+   ],
+   [
+    "Bacon",
+    0.7
+   ],
+   [
+    "Basil",
+    0.35
+   ],
+   [
+    "Banana Peppers",
+    0.35
+   ],
+   [
+    "Broccoli",
+    0.35
+   ],
+   [
+    "Chicken",
+    1.0
+   ],
+   [
+    "Extra Cheese",
+    0.3
+   ],
+   [
+    "Feta",
+    0.35
+   ],
+   [
+    "Garlic",
+    0.3
+   ],
+   [
+    "Green Olives",
+    0.35
+   ],
+   [
+    "Green Onions",
+    0.35
+   ],
+   [
+    "Green Peppers",
+    0.35
+   ],
+   [
+    "Ground Beef w/ taco seasoning",
+    1.0
+   ],
+   [
+    "Ham",
+    0.75
+   ],
+   [
+    "Italian Sausage",
+    0.75
+   ],
+   [
+    "Jalape\u00f1os",
+    0.35
+   ],
+   [
+    "Mushrooms",
+    0.35
+   ],
+   [
+    "Onions",
+    0.35
+   ],
+   [
+    "Olives",
+    0.35
+   ],
+   [
+    "Pepperoni",
+    0.75
+   ],
+   [
+    "Pepperoncini",
+    0.35
+   ],
+   [
+    "Pineapple",
+    0.35
+   ],
+   [
+    "Pink Sauce",
+    0.25
+   ],
+   [
+    "Red sauce",
+    0.2
+   ],
+   [
+    "Salami",
+    1.0
+   ],
+   [
+    "Spinach",
+    0.35
+   ],
+   [
+    "Tomatoes",
+    0.35
+   ],
+   [
+    "White Sauce",
+    0.2
+   ],
+   [
+    "BBQ Chicken",
+    3.1
+   ],
+   [
+    "Beacon Supreme",
+    4.6
+   ],
+   [
+    "Bernie",
+    2.6
+   ],
+   [
+    "Classic Pepperoni",
+    1.1
+   ],
+   [
+    "Hawaiian",
+    2.1
+   ],
+   [
+    "Jibe",
+    2.6
+   ],
+   [
+    "Mediteranean",
+    3.1
+   ],
+   [
+    "Spicy Luau",
+    2.6
+   ],
+   [
+    "Tree Hugger",
+    2.1
+   ],
+   [
+    "Ultimate Cheese",
+    0.5
+   ],
+   [
+    "Mexican Pizza",
+    2.6
+   ],
+   [
+    "Buffalo Chicken Pizza",
+    3.1
+   ],
+   [
+    "Chicken Bacon Ranch",
+    3.1
+   ]
+  ],
+  "left_12": [
+   [
+    "Artichoke",
+    0.45
+   ],
+   [
+    "Anchovies",
+    4.5
+   ],
+   [
+    "Bacon",
+    1.0
+   ],
+   [
+    "Banana Peppers",
+    0.45
+   ],
+   [
+    "Basil",
+    0.45
+   ],
+   [
+    "Broccoli",
+    0.45
+   ],
+   [
+    "Chicken",
+    1.0
+   ],
+   [
+    "Extra Cheese",
+    0.3
+   ],
+   [
+    "Feta",
+    0.45
+   ],
+   [
+    "Garlic",
+    0.35
+   ],
+   [
+    "Green Olives",
+    0.45
+   ],
+   [
+    "Green Onions",
+    0.45
+   ],
+   [
+    "Green Peppers",
+    0.45
+   ],
+   [
+    "Ground Beef w/ taco seasoning",
+    1.0
+   ],
+   [
+    "Ham",
+    1.0
+   ],
+   [
+    "Italian Sausage",
+    1.0
+   ],
+   [
+    "Jalape\u00f1os",
+    0.45
+   ],
+   [
+    "Mushrooms",
+    0.45
+   ],
+   [
+    "Onions",
+    0.45
+   ],
+   [
+    "Olives",
+    0.45
+   ],
+   [
+    "Pepperoni",
+    1.0
+   ],
+   [
+    "Pepperoncini",
+    0.45
+   ],
+   [
+    "Pineapple",
+    0.45
+   ],
+   [
+    "Pink Sauce",
+    0.35
+   ],
+   [
+    "Red Sauce",
+    0.25
+   ],
+   [
+    "Salami",
+    1.1
+   ],
+   [
+    "Spinach",
+    0.45
+   ],
+   [
+    "Tomatoes",
+    0.45
+   ],
+   [
+    "White Sauce",
+    0.3
+   ],
+   [
+    "BBQ Chicken",
+    2.6
+   ],
+   [
+    "Beacon Supreme",
+    4.6
+   ],
+   [
+    "Bernie",
+    2.6
+   ],
+   [
+    "Classic Pepperoni",
+    1.1
+   ],
+   [
+    "Hawaiian",
+    2.1
+   ],
+   [
+    "Jibe",
+    2.1
+   ],
+   [
+    "Mediterranean",
+    3.1
+   ],
+   [
+    "Spicy Luau",
+    2.6
+   ],
+   [
+    "Tree Hugger",
+    2.1
+   ],
+   [
+    "Ultimate Cheese",
+    0.5
+   ],
+   [
+    "Mexican Pizza",
+    2.6
+   ],
+   [
+    "Buffalo Chicken Pizza",
+    2.6
+   ],
+   [
+    "Chicken Bacon Ranch",
+    2.6
+   ]
+  ],
+  "left_16": [
+   [
+    "Artichoke",
+    0.7
+   ],
+   [
+    "Anchovies",
+    4.5
+   ],
+   [
+    "Bacon",
+    1.5
+   ],
+   [
+    "Banana Peppers",
+    0.7
+   ],
+   [
+    "Basil",
+    0.7
+   ],
+   [
+    "Broccoli",
+    0.7
+   ],
+   [
+    "Chicken",
+    1.5
+   ],
+   [
+    "Extra Cheese",
+    0.35
+   ],
+   [
+    "Feta",
+    0.7
+   ],
+   [
+    "Garlic",
+    0.4
+   ],
+   [
+    "Green Olives",
+    0.7
+   ],
+   [
+    "Green Onions",
+    0.7
+   ],
+   [
+    "Green Peppers",
+    0.7
+   ],
+   [
+    "Ground Beef w/ taco seasoning",
+    1.0
+   ],
+   [
+    "Ham",
+    1.5
+   ],
+   [
+    "Italian Sausage",
+    1.5
+   ],
+   [
+    "Jalapenos",
+    0.7
+   ],
+   [
+    "Mushrooms",
+    0.7
+   ],
+   [
+    "Onions",
+    0.7
+   ],
+   [
+    "Olives",
+    0.7
+   ],
+   [
+    "Pepperoni",
+    1.5
+   ],
+   [
+    "Pepperoncini",
+    0.7
+   ],
+   [
+    "Pineapple",
+    0.7
+   ],
+   [
+    "Pink Sauce",
+    0.4
+   ],
+   [
+    "Red Sauce",
+    0.35
+   ],
+   [
+    "Salami",
+    1.6
+   ],
+   [
+    "Spinach",
+    0.7
+   ],
+   [
+    "Tomatoes",
+    0.7
+   ],
+   [
+    "White Sauce",
+    0.35
+   ],
+   [
+    "BBQ Chicken",
+    3.2
+   ],
+   [
+    "Beacon Supreme",
+    4.7
+   ],
+   [
+    "Bernie",
+    2.7
+   ],
+   [
+    "Classic Pepperoni",
+    1.2
+   ],
+   [
+    "Hawaiian",
+    2.2
+   ],
+   [
+    "Jibe",
+    2.7
+   ],
+   [
+    "Mediterranean",
+    3.2
+   ],
+   [
+    "Spicy Luau",
+    2.7
+   ],
+   [
+    "Tree Hugger",
+    2.2
+   ],
+   [
+    "Ultimate Cheese",
+    0.5
+   ],
+   [
+    "Mexican Pizza",
+    2.7
+   ],
+   [
+    "Buffalo Chicken Pizza",
+    3.2
+   ],
+   [
+    "Chicken Bacon Ranch",
+    3.2
+   ]
+  ],
+  "left_18": [
+   [
+    "Artichoke",
+    0.8
+   ],
+   [
+    "Anchovies",
+    4.5
+   ],
+   [
+    "Bacon",
+    2.0
+   ],
+   [
+    "Banana Peppers",
+    0.8
+   ],
+   [
+    "Basil",
+    0.8
+   ],
+   [
+    "Broccoli",
+    0.8
+   ],
+   [
+    "Chicken",
+    2.0
+   ],
+   [
+    "Extra Cheese",
+    0.4
+   ],
+   [
+    "Feta",
+    0.8
+   ],
+   [
+    "Garlic",
+    0.5
+   ],
+   [
+    "Green Olives",
+    0.8
+   ],
+   [
+    "Green Onions",
+    0.8
+   ],
+   [
+    "Green Peppers",
+    0.8
+   ],
+   [
+    "Ground Beef w/ taco seasoning",
+    2.0
+   ],
+   [
+    "Ham",
+    2.0
+   ],
+   [
+    "Italian Sausage",
+    2.0
+   ],
+   [
+    "Jalapenos",
+    0.8
+   ],
+   [
+    "Mushrooms",
+    0.8
+   ],
+   [
+    "Onions",
+    0.8
+   ],
+   [
+    "Olives",
+    0.8
+   ],
+   [
+    "Pepperoni",
+    2.0
+   ],
+   [
+    "Pepperoncini",
+    0.8
+   ],
+   [
+    "Pineapple",
+    0.8
+   ],
+   [
+    "Pink Sauce",
+    0.4
+   ],
+   [
+    "Red Sauce",
+    0.35
+   ],
+   [
+    "Salami",
+    2.15
+   ],
+   [
+    "Spinach",
+    0.8
+   ],
+   [
+    "Tomatoes",
+    0.8
+   ],
+   [
+    "White Sauce",
+    0.35
+   ],
+   [
+    "BBQ Chicken",
+    3.25
+   ],
+   [
+    "Beacon Supreme",
+    4.75
+   ],
+   [
+    "Bernie",
+    2.75
+   ],
+   [
+    "Classic Pepperoni",
+    1.25
+   ],
+   [
+    "Hawaiian",
+    2.25
+   ],
+   [
+    "Jibe",
+    3.25
+   ],
+   [
+    "Mediterranean",
+    3.25
+   ],
+   [
+    "Spicy Luau",
+    2.75
+   ],
+   [
+    "Tree Hugger",
+    2.25
+   ],
+   [
+    "Ultimate Cheese",
+    0.5
+   ],
+   [
+    "Mexican Pizza",
+    2.75
+   ],
+   [
+    "Buffalo Chicken Pizza",
+    3.25
+   ],
+   [
+    "Chicken Bacon Ranch",
+    3.25
+   ]
+  ],
+  "meats": [
+   [
+    "Bacon",
+    2.5
+   ],
+   [
+    "Chicken Breast",
+    2.0
+   ],
+   [
+    "Ham",
+    2.0
+   ],
+   [
+    "Pepperoni",
+    2.0
+   ],
+   [
+    "Salami",
+    2.0
+   ],
+   [
+    "Turkey Breast",
+    2.0
+   ],
+   [
+    "Prime Rib",
+    9.0
+   ]
+  ],
+  "pasta_addins": [
+   [
+    "Artichoke",
+    0.5
+   ],
+   [
+    "Baby Spinach",
+    0.5
+   ],
+   [
+    "Bacon",
+    1.0
+   ],
+   [
+    "Banana Pepper",
+    0.5
+   ],
+   [
+    "Bell Peppers",
+    0.5
+   ],
+   [
+    "Broccoli",
+    0.6
+   ],
+   [
+    "Chicken",
+    1.5
+   ],
+   [
+    "Garlic",
+    0.5
+   ],
+   [
+    "Italian Sausage",
+    1.0
+   ],
+   [
+    "Mushrooms",
+    0.5
+   ],
+   [
+    "Meatballs",
+    1.5
+   ],
+   [
+    "Olives",
+    0.5
+   ],
+   [
+    "Onions",
+    0.5
+   ],
+   [
+    "Pepperoncini",
+    0.5
+   ],
+   [
+    "Tomatoes",
+    0.5
+   ],
+   [
+    "Anchovies",
+    4.5
+   ],
+   [
+    "Jalapenos",
+    0.5
+   ]
+  ],
+  "pasta_noodle": [
+   [
+    "Angel Hair",
+    0.0
+   ],
+   [
+    "Spaghetti",
+    0.0
+   ],
+   [
+    "Gluten Free",
+    0.0
+   ]
+  ],
+  "pasta_sauce": [
+   [
+    "Red Sauce",
+    0.0
+   ],
+   [
+    "Alfredo",
+    0.0
+   ],
+   [
+    "Pink Sauce",
+    1.0
+   ]
+  ],
+  "right_10": [
+   [
+    "Artichoke",
+    0.35
+   ],
+   [
+    "Anchovies",
+    4.5
+   ],
+   [
+    "Bacon",
+    0.75
+   ],
+   [
+    "Banana Peppers",
+    0.35
+   ],
+   [
+    "Basil",
+    0.35
+   ],
+   [
+    "Broccoli",
+    0.75
+   ],
+   [
+    "Chicken",
+    1.0
+   ],
+   [
+    "Extra Cheese",
+    0.2
+   ],
+   [
+    "Feta",
+    0.35
+   ],
+   [
+    "Garlic",
+    0.35
+   ],
+   [
+    "Green Olives",
+    0.35
+   ],
+   [
+    "Green Onions",
+    0.35
+   ],
+   [
+    "Green Peppers",
+    0.35
+   ],
+   [
+    "Ground Beef w/ taco seasoning",
+    0.85
+   ],
+   [
+    "Ham",
+    0.75
+   ],
+   [
+    "Italian Sausage",
+    0.75
+   ],
+   [
+    "Jalape\u00f1os",
+    0.35
+   ],
+   [
+    "Mushrooms",
+    0.35
+   ],
+   [
+    "Onions",
+    0.35
+   ],
+   [
+    "Olives",
+    0.35
+   ],
+   [
+    "Pepperoni",
+    0.75
+   ],
+   [
+    "Pepperoncini",
+    0.35
+   ],
+   [
+    "Pineapple",
+    0.35
+   ],
+   [
+    "Red Sauce",
+    0.2
+   ],
+   [
+    "Pink Sauce",
+    0.25
+   ],
+   [
+    "Salami",
+    0.8
+   ],
+   [
+    "Spinach",
+    0.35
+   ],
+   [
+    "Tomatoes",
+    0.35
+   ],
+   [
+    "White Sauce",
+    0.25
+   ],
+   [
+    "BBQ Chicken",
+    2.6
+   ],
+   [
+    "Beacon Supreme",
+    4.6
+   ],
+   [
+    "Bernie",
+    2.6
+   ],
+   [
+    "Classic Pepperonii",
+    1.1
+   ],
+   [
+    "Hawaiian",
+    2.1
+   ],
+   [
+    "Jibe",
+    2.6
+   ],
+   [
+    "Mediterranean",
+    3.1
+   ],
+   [
+    "Spicy Luau",
+    2.6
+   ],
+   [
+    "Tree Hugger",
+    2.1
+   ],
+   [
+    "Ultimate Cheese",
+    0.5
+   ],
+   [
+    "Mexican Pizza",
+    2.6
+   ],
+   [
+    "Buffalo Chicken Pizza",
+    3.1
+   ],
+   [
+    "Chicken Bacon Ranch",
+    3.1
+   ]
+  ],
+  "right_12": [
+   [
+    "Artichoke",
+    0.45
+   ],
+   [
+    "Anchovies",
+    4.5
+   ],
+   [
+    "Bacon",
+    1.0
+   ],
+   [
+    "Banana Peppers",
+    0.45
+   ],
+   [
+    "Basil",
+    0.45
+   ],
+   [
+    "Broccoli",
+    0.45
+   ],
+   [
+    "Chicken",
+    1.25
+   ],
+   [
+    "Extra Cheese",
+    0.3
+   ],
+   [
+    "Feta",
+    0.45
+   ],
+   [
+    "Garlic",
+    0.3
+   ],
+   [
+    "Green Olives",
+    0.45
+   ],
+   [
+    "Green Onions",
+    0.45
+   ],
+   [
+    "Green Peppers",
+    0.45
+   ],
+   [
+    "Ground Beef w/ taco seasoning",
+    1.0
+   ],
+   [
+    "Ham",
+    0.8
+   ],
+   [
+    "Italian Sausage",
+    1.0
+   ],
+   [
+    "Jalapenos",
+    0.45
+   ],
+   [
+    "Mushrooms",
+    0.45
+   ],
+   [
+    "Onions",
+    0.45
+   ],
+   [
+    "Olives",
+    0.45
+   ],
+   [
+    "Pepperoni",
+    1.0
+   ],
+   [
+    "Pepperoncini",
+    0.45
+   ],
+   [
+    "Pineapple",
+    0.8
+   ],
+   [
+    "Pink Sauce",
+    0.35
+   ],
+   [
+    "Red Sauce",
+    0.3
+   ],
+   [
+    "Salami",
+    1.1
+   ],
+   [
+    "Spinach",
+    0.45
+   ],
+   [
+    "Tomatoes",
+    0.45
+   ],
+   [
+    "White Sauce",
+    0.3
+   ],
+   [
+    "BBQ Chicken",
+    3.1
+   ],
+   [
+    "Beacon Supreme",
+    4.6
+   ],
+   [
+    "Bernie",
+    2.6
+   ],
+   [
+    "Classic Pepperoni",
+    1.1
+   ],
+   [
+    "Hawaiian",
+    2.1
+   ],
+   [
+    "Jibe",
+    2.6
+   ],
+   [
+    "Mediterranean",
+    3.1
+   ],
+   [
+    "Spicy Luau",
+    2.6
+   ],
+   [
+    "Tree Hugger",
+    2.1
+   ],
+   [
+    "Ultimate Cheese",
+    0.5
+   ],
+   [
+    "Mexican Pizza",
+    2.6
+   ],
+   [
+    "Buffalo Chicken Pizza",
+    3.1
+   ],
+   [
+    "Chicken Bacon Ranch",
+    3.1
+   ]
+  ],
+  "right_16": [
+   [
+    "Artichoke",
+    0.7
+   ],
+   [
+    "Anchovies",
+    4.5
+   ],
+   [
+    "Bacon",
+    1.5
+   ],
+   [
+    "Banana Peppers",
+    0.7
+   ],
+   [
+    "Basil",
+    0.7
+   ],
+   [
+    "Broccoli",
+    0.7
+   ],
+   [
+    "Chicken",
+    1.5
+   ],
+   [
+    "Extra Cheese",
+    0.35
+   ],
+   [
+    "Feta",
+    0.7
+   ],
+   [
+    "Garlic",
+    0.4
+   ],
+   [
+    "Green Olives",
+    0.7
+   ],
+   [
+    "Green Onions",
+    0.7
+   ],
+   [
+    "Green Peppers",
+    0.7
+   ],
+   [
+    "Ground Beef w/ taco seasoning",
+    1.5
+   ],
+   [
+    "Ham",
+    1.5
+   ],
+   [
+    "Italian Sausage",
+    1.5
+   ],
+   [
+    "Jalapenos",
+    0.7
+   ],
+   [
+    "Mushrooms",
+    0.7
+   ],
+   [
+    "Onions",
+    0.7
+   ],
+   [
+    "Olives",
+    0.7
+   ],
+   [
+    "Pepperoni",
+    1.5
+   ],
+   [
+    "Pepperoncini",
+    0.7
+   ],
+   [
+    "Pineapple",
+    0.7
+   ],
+   [
+    "Pink Sauce",
+    0.4
+   ],
+   [
+    "Red Sauce",
+    0.35
+   ],
+   [
+    "Salami",
+    1.6
+   ],
+   [
+    "Spinach",
+    0.7
+   ],
+   [
+    "Tomatoes",
+    0.7
+   ],
+   [
+    "White Sauce",
+    0.35
+   ],
+   [
+    "BBQ Chicken",
+    3.2
+   ],
+   [
+    "Beacon Supreme",
+    4.7
+   ],
+   [
+    "Bernie",
+    2.7
+   ],
+   [
+    "Classic Pepperoni",
+    1.2
+   ],
+   [
+    "Hawaiian",
+    2.2
+   ],
+   [
+    "Jibe",
+    2.7
+   ],
+   [
+    "Mediterranean",
+    3.2
+   ],
+   [
+    "Spicy Luau",
+    2.7
+   ],
+   [
+    "Tree Hugger",
+    2.2
+   ],
+   [
+    "Ultimate Cheese",
+    0.5
+   ],
+   [
+    "Mexican Pizza",
+    2.7
+   ],
+   [
+    "Buffalo Chicken Pizza",
+    3.2
+   ],
+   [
+    "Chicken Bacon Ranch",
+    3.2
+   ]
+  ],
+  "right_18": [
+   [
+    "Artichoke",
+    0.8
+   ],
+   [
+    "Anchovies",
+    4.5
+   ],
+   [
+    "Bacon",
+    2.0
+   ],
+   [
+    "Banana Peppers",
+    0.8
+   ],
+   [
+    "Basil",
+    0.8
+   ],
+   [
+    "Broccoli",
+    0.8
+   ],
+   [
+    "Chicken",
+    2.0
+   ],
+   [
+    "Extra Cheese",
+    0.4
+   ],
+   [
+    "Feta",
+    0.8
+   ],
+   [
+    "Garlic",
+    0.5
+   ],
+   [
+    "Green Olives",
+    0.8
+   ],
+   [
+    "Green Onions",
+    0.8
+   ],
+   [
+    "Green Peppers",
+    0.8
+   ],
+   [
+    "Ground Beef w/ taco seasoning",
+    2.0
+   ],
+   [
+    "Ham",
+    2.0
+   ],
+   [
+    "Italian Sausage",
+    2.0
+   ],
+   [
+    "Jalapenos",
+    0.8
+   ],
+   [
+    "Mushrooms",
+    0.8
+   ],
+   [
+    "Onions",
+    0.8
+   ],
+   [
+    "Olives",
+    0.8
+   ],
+   [
+    "Pepperoni",
+    2.0
+   ],
+   [
+    "Pepperoncini",
+    0.8
+   ],
+   [
+    "Pineapple",
+    1.1
+   ],
+   [
+    "Pink Sauce",
+    0.45
+   ],
+   [
+    "Red Sauce",
+    0.4
+   ],
+   [
+    "Salami",
+    2.1
+   ],
+   [
+    "Spinach",
+    0.8
+   ],
+   [
+    "Tomatoes",
+    0.8
+   ],
+   [
+    "White Sauce",
+    0.4
+   ],
+   [
+    "BBQ Chicken",
+    3.25
+   ],
+   [
+    "Beacon Supreme",
+    4.75
+   ],
+   [
+    "Bernie",
+    2.75
+   ],
+   [
+    "Classic Pepperoni",
+    1.25
+   ],
+   [
+    "Hawaiian",
+    2.25
+   ],
+   [
+    "Jibe",
+    3.25
+   ],
+   [
+    "Mediterranean",
+    3.25
+   ],
+   [
+    "Spicy Luau",
+    2.75
+   ],
+   [
+    "Tree Hugger",
+    2.25
+   ],
+   [
+    "Ultimate Cheese",
+    0.5
+   ],
+   [
+    "Mexican Pizza",
+    2.75
+   ],
+   [
+    "Buffalo Chicken Pizza",
+    3.25
+   ],
+   [
+    "Chicken Bacon Ranch",
+    3.25
+   ]
+  ],
+  "veggie_addons": [
+   [
+    "Lettuce",
+    0.6
+   ],
+   [
+    "Spinach",
+    0.6
+   ],
+   [
+    "Tomatoes",
+    0.6
+   ],
+   [
+    "Red Onions",
+    0.6
+   ],
+   [
+    "Pineapple",
+    0.6
+   ],
+   [
+    "Mushrooms",
+    0.6
+   ],
+   [
+    "Black Olives",
+    0.6
+   ],
+   [
+    "Bell Peppers",
+    0.6
+   ],
+   [
+    "Banana Peppers",
+    0.6
+   ],
+   [
+    "Jalapenos",
+    0.6
+   ],
+   [
+    "Pepperoncinis",
+    0.6
+   ],
+   [
+    "Pickles",
+    0.6
+   ],
+   [
+    "Cucumbers",
+    0.6
+   ]
+  ],
+  "whole_10": [
+   [
+    "Artichoke",
+    0.6
+   ],
+   [
+    "Anchovies",
+    4.5
+   ],
+   [
+    "Bacon",
+    1.5
+   ],
+   [
+    "Banana Peppers",
+    0.6
+   ],
+   [
+    "Basil",
+    0.6
+   ],
+   [
+    "Broccoli",
+    0.6
+   ],
+   [
+    "Chicken",
+    2.0
+   ],
+   [
+    "Extra Cheese",
+    1.0
+   ],
+   [
+    "Feta",
+    0.6
+   ],
+   [
+    "Garlic",
+    0.6
+   ],
+   [
+    "Green Olives",
+    0.6
+   ],
+   [
+    "Green Oniond",
+    0.6
+   ],
+   [
+    "Green Peppers",
+    0.6
+   ],
+   [
+    "Ground Beef w/ taco seasoning",
+    1.5
+   ],
+   [
+    "Ham",
+    1.5
+   ],
+   [
+    "Italian Sausage",
+    1.5
+   ],
+   [
+    "Jalape\u00f1os",
+    0.6
+   ],
+   [
+    "Mushrooms",
+    0.6
+   ],
+   [
+    "Olives",
+    0.6
+   ],
+   [
+    "Onions",
+    0.6
+   ],
+   [
+    "Pepperoni",
+    1.5
+   ],
+   [
+    "Pepperoncini",
+    0.6
+   ],
+   [
+    "Pineapple",
+    0.6
+   ],
+   [
+    "Pink Sauce",
+    0.5
+   ],
+   [
+    "Red sauce",
+    0.25
+   ],
+   [
+    "Salami",
+    1.5
+   ],
+   [
+    "Spinach",
+    0.6
+   ],
+   [
+    "Tomatoes",
+    0.6
+   ],
+   [
+    "White sauce",
+    0.5
+   ]
+  ],
+  "whole_12": [
+   [
+    "Artichoke",
+    0.75
+   ],
+   [
+    "Anchovies",
+    4.5
+   ],
+   [
+    "Bacon",
+    1.5
+   ],
+   [
+    "Banana Peppers",
+    0.75
+   ],
+   [
+    "Basil",
+    0.75
+   ],
+   [
+    "Broccoli",
+    0.75
+   ],
+   [
+    "Chicken",
+    1.5
+   ],
+   [
+    "Extra Cheese",
+    1.25
+   ],
+   [
+    "Feta",
+    0.75
+   ],
+   [
+    "Garlic",
+    0.5
+   ],
+   [
+    "Green Olives",
+    0.75
+   ],
+   [
+    "Green Onions",
+    0.75
+   ],
+   [
+    "Green Peppers",
+    0.75
+   ],
+   [
+    "Ground Beef w/ taco seasoning",
+    1.5
+   ],
+   [
+    "Ham",
+    1.5
+   ],
+   [
+    "Italian Sausage",
+    1.5
+   ],
+   [
+    "Jalape\u00f1os",
+    0.75
+   ],
+   [
+    "Mushrooms",
+    0.75
+   ],
+   [
+    "Onions",
+    0.75
+   ],
+   [
+    "Olives",
+    0.75
+   ],
+   [
+    "Pepperoni",
+    1.5
+   ],
+   [
+    "Pepperoncinni",
+    0.75
+   ],
+   [
+    "Pineapple",
+    0.75
+   ],
+   [
+    "Pink Sauce",
+    0.6
+   ],
+   [
+    "Red Sauce",
+    0.25
+   ],
+   [
+    "Salami",
+    1.5
+   ],
+   [
+    "Spinach",
+    0.75
+   ],
+   [
+    "Tomatoes",
+    0.75
+   ],
+   [
+    "White Sauce",
+    0.5
+   ]
+  ],
+  "whole_16": [
+   [
+    "Artichoke",
+    1.25
+   ],
+   [
+    "Anchovies",
+    4.5
+   ],
+   [
+    "Bacon",
+    2.0
+   ],
+   [
+    "Banana Peppers",
+    1.25
+   ],
+   [
+    "Basil",
+    1.25
+   ],
+   [
+    "Broccoli",
+    1.25
+   ],
+   [
+    "Chicken",
+    2.75
+   ],
+   [
+    "Extra Cheese",
+    0.75
+   ],
+   [
+    "Feta",
+    1.25
+   ],
+   [
+    "Garlic",
+    0.75
+   ],
+   [
+    "Green Olives",
+    1.25
+   ],
+   [
+    "Green Onions",
+    1.25
+   ],
+   [
+    "Green Peppers",
+    1.25
+   ],
+   [
+    "Ground Beef w/ taco seasoning",
+    2.0
+   ],
+   [
+    "Ham",
+    2.0
+   ],
+   [
+    "Italian Sausage",
+    2.0
+   ],
+   [
+    "Jalape\u00f1os",
+    1.25
+   ],
+   [
+    "Mushrooms",
+    1.25
+   ],
+   [
+    "Olives",
+    1.25
+   ],
+   [
+    "Onions",
+    1.25
+   ],
+   [
+    "Pepperoni",
+    2.0
+   ],
+   [
+    "Pepperoncinni",
+    1.25
+   ],
+   [
+    "Pineapple",
+    1.25
+   ],
+   [
+    "Pink Sauce",
+    0.75
+   ],
+   [
+    "Red Sauce",
+    0.25
+   ],
+   [
+    "Salami",
+    2.0
+   ],
+   [
+    "Spinach",
+    1.25
+   ],
+   [
+    "Tomatoes",
+    1.25
+   ],
+   [
+    "White Sauce",
+    0.75
+   ]
+  ],
+  "whole_18": [
+   [
+    "Artichoke",
+    1.5
+   ],
+   [
+    "Anchovies",
+    4.5
+   ],
+   [
+    "Bacon",
+    2.5
+   ],
+   [
+    "Basil",
+    1.5
+   ],
+   [
+    "Banana Peppers",
+    1.5
+   ],
+   [
+    "Broccoli",
+    1.5
+   ],
+   [
+    "Chicken",
+    3.0
+   ],
+   [
+    "Extra Cheese",
+    1.0
+   ],
+   [
+    "Feta",
+    1.5
+   ],
+   [
+    "Garlic",
+    1.0
+   ],
+   [
+    "Green Olives",
+    1.5
+   ],
+   [
+    "Green Onions",
+    1.5
+   ],
+   [
+    "Green Peppers",
+    1.5
+   ],
+   [
+    "Ground Beef w/ taco seasoning",
+    2.5
+   ],
+   [
+    "Ham",
+    2.5
+   ],
+   [
+    "Italian Sausage",
+    2.5
+   ],
+   [
+    "Jalape\u00f1os",
+    1.5
+   ],
+   [
+    "Mushrooms",
+    1.5
+   ],
+   [
+    "Olives",
+    1.5
+   ],
+   [
+    "Onions",
+    1.5
+   ],
+   [
+    "Pepperoni",
+    2.5
+   ],
+   [
+    "Pepperoncinni",
+    1.5
+   ],
+   [
+    "Pineapple",
+    1.5
+   ],
+   [
+    "Pink Sauce",
+    1.0
+   ],
+   [
+    "Red Sauce",
+    0.75
+   ],
+   [
+    "Salami",
+    2.5
+   ],
+   [
+    "Spinach",
+    1.5
+   ],
+   [
+    "Tomatoes",
+    1.5
+   ],
+   [
+    "White Sauce",
+    1.0
+   ]
+  ],
+  "wing_flavors": [
+   [
+    "Buffalo",
+    0.0
+   ],
+   [
+    "Louisiana",
+    0.0
+   ],
+   [
+    "Spicy Dry Rub",
+    0.0
+   ],
+   [
+    "Carolina",
+    0.0
+   ],
+   [
+    "Ranch Garlic",
+    0.0
+   ],
+   [
+    "BBQ",
+    0.0
+   ],
+   [
+    "Vince's Wings",
+    0.0
+   ],
+   [
+    "Plain",
+    0.0
+   ],
+   [
+    "1/2 &1/2",
+    0.0
+   ]
+  ],
+  "wing_sauce_side": [
+   [
+    "Ranch on the side",
+    0.15
+   ],
+   [
+    "Blue Cheese on the side",
+    0.15
+   ],
+   [
+    "BBQ on the side",
+    0.15
+   ],
+   [
+    "Carolina on the side",
+    0.15
+   ],
+   [
+    "Buffalo on the side",
+    0.15
+   ],
+   [
+    "Louisiana on the side",
+    0.15
+   ]
+  ],
+  "wing_side": [
+   [
+    "No Celery",
+    0.0
+   ],
+   [
+    "Celery",
+    0.0
+   ]
+  ]
+ },
+ "source": "Square Dashboard > Items > Modifiers for Beacon Pizza and Tap House, read 2026-11-22 ~00:06 PST by browser (read-only, nothing changed). 27 sets, 562 options. (The browser's report said 28 sets, but the sets it listed number 27; the 562 option count matches exactly.)"
+}

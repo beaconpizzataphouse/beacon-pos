@@ -393,7 +393,7 @@ window.BEACON_MODIFIERS = {
       ],
       [
         "Chicken Bacon Ranch",
-        310.0
+        3.1
       ]
     ],
     "left_12": [
