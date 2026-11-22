@@ -53,6 +53,14 @@
   var BYO_NAME = "Build Your Own";
   var HALF_HALF_FLAVOR = "1/2 &1/2"; /* raw Square name; displayed "1/2 & 1/2" */
 
+  /* CUSTOM soup extras — OURS, not from Square. Square's modifier
+     data has no sour cream in any set, so Vince asked for it as a
+     $0.50 button anyway (Nov 22 2026). This constant is the only
+     place it lives: it is NOT in modifiers.json / modifiers.js, so
+     a re-pull from Square can never wipe it. Shape matches
+     modOptions: { name, display, priceCents }. */
+  var SOUP_EXTRAS = [{ name: "Sour Cream", display: "Sour Cream", priceCents: 50 }];
+
   var state = {
     tab: "pizzas",
     view: "order",          // "order" | "orders" | "reports"
@@ -139,6 +147,15 @@
     return 0;
   }
 
+  /* Price of a custom soup extra by name (see SOUP_EXTRAS above).
+     Unknown names price at $0 — extras never come from Square. */
+  function soupExtraPrice(name) {
+    for (var i = 0; i < SOUP_EXTRAS.length; i++) {
+      if (SOUP_EXTRAS[i].name === name) return SOUP_EXTRAS[i].priceCents;
+    }
+    return 0;
+  }
+
   /* Topping set for a pizza size + coverage: whole_12, left_16, ... */
   function toppingSetKey(sizeKey, coverage) {
     var sz = TOPPING_SIZE[sizeKey] || "12";
@@ -200,23 +217,43 @@
     return addToCart(pizzaName, SIZE_LABELS[sizeKey] || sizeKey, toCents(price), "pizza");
   }
 
+  /* Sauces on the side, shared by the wing and pizza flows.
+     sauceQtys: [[raw wing_sauce_side name, qty], ...] in tap order.
+     $0.50 each in OUR data ($0.15 in Square; Vince, Nov 22 2026);
+     a qty above 1 shows as "Ranch ×3". Returns { mods, parts }
+     where parts are the detail strings ("+ Ranch ×3"). */
+  function sauceMods(sauceQtys) {
+    var mods = [];
+    var parts = (sauceQtys || []).map(function (sq) {
+      var qty = sq[1] || 1;
+      mods.push({ name: displayName(sq[0]),
+                  priceCents: modPrice("wing_sauce_side", sq[0]) * qty });
+      return "+ " + displayName(sq[0]) + (qty > 1 ? " \u00d7" + qty : "");
+    });
+    return { mods: mods, parts: parts };
+  }
+
   /* Build a pizza cart line from a finished modifier flow.
      pickedNames: raw Square option names, in the order tapped.
-     coverage: "whole" | "left" | "right". */
-  function buildPizzaLine(pizzaName, sizeKey, coverage, pickedNames) {
+     coverage: "whole" | "left" | "right". sauceQtys: [[raw
+     wing_sauce_side name, qty], ...] — sauces on the side, $0.50
+     each, shown after the topping detail (" · + Ranch ×2"). */
+  function buildPizzaLine(pizzaName, sizeKey, coverage, pickedNames, sauceQtys) {
     var pizza = pizzaByName(pizzaName);
     if (!pizza) return null;
     var price = pizza.sizes[sizeKey];
     if (price == null) return null;
     var isBYO = pizzaName === BYO_NAME;
     var setKey = toppingSetKey(sizeKey, coverage);
-    var mods = pickedNames.map(function (n) {
+    var topMods = pickedNames.map(function (n) {
       return { name: displayName(n), priceCents: modPrice(setKey, n) };
     });
+    var s = sauceMods(sauceQtys);
+    var mods = topMods.concat(s.mods);
     var priceCents = toCents(price);
     for (var i = 0; i < mods.length; i++) priceCents += mods[i].priceCents;
     var detail = "";
-    var names = mods.map(function (m) { return m.name; }).join(", ");
+    var names = topMods.map(function (m) { return m.name; }).join(", ");
     if (isBYO) {
       if (coverage === "left" || coverage === "right") {
         var side = coverage === "left" ? "Left" : "Right";
@@ -226,6 +263,9 @@
       }
     } else {
       detail = names ? "+ " + names : "";
+    }
+    if (s.parts.length) {
+      detail = detail ? detail + " \u00b7 " + s.parts.join(", ") : s.parts.join(", ");
     }
     return { name: pizzaName, size: SIZE_LABELS[sizeKey] || sizeKey,
              priceCents: priceCents, detail: detail, mods: mods, category: "pizza" };
@@ -237,8 +277,10 @@
      Left first, then Right. For Build Your Own a side with no picks
      reads "cheese only"; for a specialty pizza only halves with
      picks are shown (the base pizza already covers a plain half),
-     so a specialty with no picks on either half has no detail. */
-  function buildHalfHalfLine(pizzaName, sizeKey, leftPicks, rightPicks) {
+     so a specialty with no picks on either half has no detail.
+     sauceQtys: sauces on the side, $0.50 each, shown after the
+     half detail (" · + Ranch ×2"). */
+  function buildHalfHalfLine(pizzaName, sizeKey, leftPicks, rightPicks, sauceQtys) {
     var pizza = pizzaByName(pizzaName);
     if (!pizza) return null;
     var price = pizza.sizes[sizeKey];
@@ -258,7 +300,8 @@
     }
     var leftMods = sideMods("left", leftPicks);
     var rightMods = sideMods("right", rightPicks);
-    var mods = leftMods.concat(rightMods);
+    var s = sauceMods(sauceQtys);
+    var mods = leftMods.concat(rightMods, s.mods);
     var priceCents = toCents(price);
     for (var i = 0; i < mods.length; i++) priceCents += mods[i].priceCents;
     var detail;
@@ -270,6 +313,9 @@
       if (rightMods.length) parts.push("Right: " + sideNames(rightMods));
       detail = parts.join("; ");
     }
+    if (s.parts.length) {
+      detail = detail ? detail + " \u00b7 " + s.parts.join(", ") : s.parts.join(", ");
+    }
     return { name: pizzaName, size: SIZE_LABELS[sizeKey] || sizeKey,
              priceCents: priceCents, detail: detail,
              mods: mods, category: "pizza" };
@@ -279,9 +325,8 @@
      flavor: raw wing_flavors name; halves: raw half_half_wings names
      (only when flavor is 1/2 & 1/2); celery: "Celery"|"No Celery";
      flats: "none"|"All Flats"|"All Drums"; sauceQtys: [[raw
-     wing_sauce_side name, qty], ...] in tap order — sauces on the
-     side are $0.50 each in OUR data ($0.15 in Square; Vince,
-     Nov 22 2026) and a qty above 1 shows as "Ranch ×3". */
+     wing_sauce_side name, qty], ...] in tap order — see sauceMods
+     for the $0.50 pricing and the "Ranch ×3" detail. */
   function buildWingLine(name, priceCents, flavor, halves, celery, flats, dryRub, sauceQtys) {
     var mods = [];
     var parts = [];
@@ -298,13 +343,9 @@
       parts.push("All Drums");
     }
     if (dryRub) parts.push("Spicy dry rub");
-    var sauces = (sauceQtys || []).map(function (sq) {
-      var qty = sq[1] || 1;
-      mods.push({ name: displayName(sq[0]),
-                  priceCents: modPrice("wing_sauce_side", sq[0]) * qty });
-      return "+ " + displayName(sq[0]) + (qty > 1 ? " \u00d7" + qty : "");
-    });
-    if (sauces.length) parts.push(sauces.join(", "));
+    var s = sauceMods(sauceQtys);
+    mods = mods.concat(s.mods);
+    if (s.parts.length) parts.push(s.parts.join(", "));
     var total = priceCents;
     for (var i = 0; i < mods.length; i++) total += mods[i].priceCents;
     return { name: name, size: "", priceCents: total,
@@ -364,11 +405,11 @@
 
   /* Build a soup cart line from a finished add-ons flow.
      cheeseNames / veggieNames: raw Square option names, in tap
-     order, priced from the cheese / veggie_addons sets. Nothing
-     picked = plain soup. Square's data has no sour cream in any
-     set, so sour cream stays in the Notes field — nothing was
-     invented for it. */
-  function buildSoupLine(name, priceCents, cheeseNames, veggieNames) {
+     order, priced from the cheese / veggie_addons sets.
+     extraNames: names from our custom SOUP_EXTRAS constant (Sour
+     Cream $0.50 — Square has no sour cream in any set, so it is
+     ours, not Square's). Nothing picked = plain soup. */
+  function buildSoupLine(name, priceCents, cheeseNames, veggieNames, extraNames) {
     var mods = [];
     function addMods(setKey, names) {
       (names || []).forEach(function (n) {
@@ -377,6 +418,9 @@
     }
     addMods("cheese", cheeseNames);
     addMods("veggie_addons", veggieNames);
+    (extraNames || []).forEach(function (n) {
+      mods.push({ name: n, priceCents: soupExtraPrice(n) });
+    });
     var total = priceCents;
     for (var i = 0; i < mods.length; i++) total += mods[i].priceCents;
     var detail = mods.length
@@ -1160,14 +1204,17 @@
      toppings for the first half -> toppings for the other half
      (half-and-half only; Done with nothing picked leaves that half
      plain — cheese only on Build Your Own, the base pizza on a
-     specialty). Wings: flavor -> half flavors (only for 1/2 & 1/2)
+     specialty) -> sauces on the side (same 6 sauces + steppers as
+     wings, $0.50 each; Done with nothing = no sauces). "No extra
+     toppings" skips the toppings step but still offers sauces.
+     Wings: flavor -> half flavors (only for 1/2 & 1/2)
      -> celery -> extras. Sandwich: cheese -> veggies -> meats
      (each step multi-pick, Done with nothing = no change; "No
      changes" on the first step adds the sandwich plain). Pasta:
      sauce -> noodle -> add-ins (sauce and noodle are single-pick
      with a Skip button; add-ins are multi-pick). Soup: one add-ons
-     window (cheese + veggies, multi-pick; Done with nothing = plain
-     soup). Single-pick steps advance on tap; multi-pick steps have
+     window (cheese + veggies + extras, multi-pick; Done with
+     nothing = plain soup). Single-pick steps advance on tap; multi-pick steps have
      a Done button. Back returns to the previous step, or to the size
      picker for pizzas / closes the flow for wings, sandwiches,
      pastas, and soups. */
@@ -1181,7 +1228,9 @@
       picked: {}, pickedOrder: [],
       /* one pick set per side, so Back keeps each half's toppings */
       picksBySide: { left: { picked: {}, pickedOrder: [] },
-                     right: { picked: {}, pickedOrder: [] } }
+                     right: { picked: {}, pickedOrder: [] } },
+      /* sauces on the side take multiples: name -> qty, in tap order */
+      sauces: {}, saucesOrder: []
     };
     renderFlow();
     var modal = el("flow-modal");
@@ -1231,7 +1280,8 @@
       kind: "soup", name: name, priceCents: priceCents,
       step: "addons",
       cheese: {}, cheeseOrder: [],
-      veggies: {}, veggiesOrder: []
+      veggies: {}, veggiesOrder: [],
+      extras: {}, extrasOrder: []
     };
     renderFlow();
     var modal = el("flow-modal");
@@ -1308,6 +1358,12 @@
             "</div>";
         }
         footHTML = footBackHTML("Back");
+      } else if (f.step === "sauces") {
+        s = "Sauces on the side? (optional)";
+        html = modOptions("wing_sauce_side").map(function (o) {
+          return sauceStepperHTML(o, f.sauces[o.name] || 0);
+        }).join("");
+        footHTML = footBackHTML("Back") + footDoneHTML("Add to order", false);
       } else {
         var picks = flowPicks(f);
         var options = modOptions(toppingSetKey(f.sizeKey, f.side || f.coverage));
@@ -1436,6 +1492,10 @@
         modOptions("veggie_addons").map(function (o) {
           return optBtnHTML("veggie", o.name, o.display, o.priceCents, !!f.veggies[o.name]);
         }).join("") + "</div>" +
+        '<h3 class="opt-section">Extras</h3><div class="flow-grid">' +
+        SOUP_EXTRAS.map(function (o) {
+          return optBtnHTML("extra", o.name, o.display, o.priceCents, !!f.extras[o.name]);
+        }).join("") + "</div>" +
         '<button type="button" class="flow-skip" data-action="skip-all">' +
         "No changes — add it as it comes</button>";
       footHTML = footBackHTML("Back") + footDoneHTML("Add to order", false);
@@ -1482,8 +1542,13 @@
       }
       renderFlow();
     } else if (action === "skip-toppings") {
-      f.coverage = "whole"; /* plain pizza, no toppings */
-      finishPizzaFlow();
+      /* plain pizza, no toppings — clear any picks made, then offer
+         sauces like every other pizza */
+      f.coverage = "whole";
+      f.picked = {};
+      f.pickedOrder = [];
+      f.step = "sauces";
+      renderFlow();
     } else if (action === "flavor") {
       f.flavor = value;
       f.step = (value === HALF_HALF_FLAVOR) ? "halves" : "celery";
@@ -1523,6 +1588,10 @@
     } else if (action === "veggie") {
       togglePick(f.veggies, f.veggiesOrder, value);
       renderFlow();
+    } else if (action === "extra") {
+      /* soup extras: our custom SOUP_EXTRAS options (Sour Cream) */
+      togglePick(f.extras, f.extrasOrder, value);
+      renderFlow();
     } else if (action === "meat") {
       togglePick(f.meats, f.meatsOrder, value);
       renderFlow();
@@ -1551,7 +1620,12 @@
     var f = state.flow;
     if (!f) return;
     if (f.kind === "pizza") {
-      if (f.step === "toppings" && f.coverage !== "whole" && f.halfStep === 2) {
+      if (f.step === "sauces") {
+        /* back to toppings; side/halfStep are untouched, so a half
+           flow returns to the second half's picker with picks kept */
+        f.step = "toppings";
+        renderFlow();
+      } else if (f.step === "toppings" && f.coverage !== "whole" && f.halfStep === 2) {
         /* back to the first half; each half's picks are kept per side */
         f.side = f.coverage;
         f.halfStep = 1;
@@ -1594,8 +1668,11 @@
         f.halfStep = 2;
         renderFlow();
       } else {
-        finishPizzaFlow();
+        f.step = "sauces";
+        renderFlow();
       }
+    } else if (f.kind === "pizza" && f.step === "sauces") {
+      finishPizzaFlow();
     }
     else if (f.kind === "wings" && f.step === "halves") {
       if (f.halves.length === 2) { f.step = "celery"; renderFlow(); }
@@ -1610,12 +1687,13 @@
   function finishPizzaFlow() {
     var f = state.flow;
     if (!f) return;
+    var sauceQtys = f.saucesOrder.map(function (n) { return [n, f.sauces[n]]; });
     var line;
     if (f.coverage === "left" || f.coverage === "right") {
       line = buildHalfHalfLine(f.pizzaName, f.sizeKey,
-        f.picksBySide.left.pickedOrder, f.picksBySide.right.pickedOrder);
+        f.picksBySide.left.pickedOrder, f.picksBySide.right.pickedOrder, sauceQtys);
     } else {
-      line = buildPizzaLine(f.pizzaName, f.sizeKey, f.coverage, f.pickedOrder);
+      line = buildPizzaLine(f.pizzaName, f.sizeKey, f.coverage, f.pickedOrder, sauceQtys);
     }
     if (line) addToCart(line.name, line.size, line.priceCents, line.category, line.detail, line.mods);
     closeFlow();
@@ -1655,7 +1733,7 @@
   function finishSoupFlow() {
     var f = state.flow;
     if (!f) return;
-    var line = buildSoupLine(f.name, f.priceCents, f.cheeseOrder, f.veggiesOrder);
+    var line = buildSoupLine(f.name, f.priceCents, f.cheeseOrder, f.veggiesOrder, f.extrasOrder);
     if (line) addToCart(line.name, line.size, line.priceCents, line.category, line.detail, line.mods);
     closeFlow();
     renderCart();
@@ -1875,6 +1953,7 @@
     categoryById: categoryById, pizzaByName: pizzaByName,
     displayName: displayName, modSet: modSet, modOptions: modOptions,
     modPrice: modPrice, toppingSetKey: toppingSetKey, splitHalfSet: splitHalfSet,
+    SOUP_EXTRAS: SOUP_EXTRAS, soupExtraPrice: soupExtraPrice,
     buildPizzaLine: buildPizzaLine, buildHalfHalfLine: buildHalfHalfLine,
     buildWingLine: buildWingLine,
     buildSandwichLine: buildSandwichLine, buildPastaLine: buildPastaLine,

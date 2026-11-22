@@ -44,8 +44,9 @@ ours, so `modifiers.json` / `modifiers.js` use **$3.10**; Square itself
 still shows $310.00 and has NOT been changed. Do not "correct" our
 $3.10 back to $310.00.
 
-**Deliberate price change:** wing sauces on the side are **$0.15**
-each in Square; ours are **$0.50** each per Vince (Nov 22 2026).
+**Deliberate price change:** sauces on the side are **$0.15**
+each in Square; ours are **$0.50** each per Vince (Nov 22 2026) —
+on wings and on pizzas alike.
 `modifiers.json` / `modifiers.js` carry $0.50 — do not "correct" it
 back to $0.15. Square itself is unchanged. (Scope: the wing
 sauce-on-the-side set only — the standalone Ranch / Marinara side
@@ -65,6 +66,10 @@ One question per window, big buttons, Back on every step:
    For halves, toppings come first, then a "Specialty half" section
    with the 13 specialty halves. The line shows both halves
    (e.g. `16" BYO — Left: Pepperoni; Right: Hawaiian`).
+   After toppings comes "Sauces on the side?" — the same 6
+   sauces + quantity steppers as wings, $0.50 each; Done with
+   nothing = no sauces. The line shows them after the toppings
+   (e.g. `Pepperoni · + Ranch ×2`).
 2. **Specialty pizzas:** after the size picker, "Add extra toppings?"
    offers Whole pizza / Left half / Right half / No extra toppings.
    Whole uses the whole-pizza set for that size; a half walks both
@@ -75,7 +80,10 @@ One question per window, big buttons, Back on every step:
    only reads `18" Hawaiian — Left: Jalapeños`) — no "cheese only"
    for an untouched half, since the base pizza already covers it.
    "No extra toppings" (or Done with none chosen) rings up the plain
-   pizza, as before.
+   pizza — but it still offers "Sauces on the side?" first, like
+   every pizza, so a plain pizza can still get ranch on the side.
+   Sauces are the same 6 + steppers as wings, $0.50 each, and show
+   after the topping detail (e.g. `+ Mushrooms · + BBQ`).
 3. **Wings** (Bone-in; Boneless 5/10/15): tap wing item → flavor
    picker (9 flavors, required, all free) → if "1/2 & 1/2", a second
    picker for the two half flavors (exactly 2) → celery choice
@@ -101,13 +109,16 @@ One question per window, big buttons, Back on every step:
    means kept as it comes); add-ins are multi-pick. "No changes"
    on the first step adds the pasta plain. The line shows the
    choices (e.g. `Pink Sauce · Gluten Free · + Chicken, Broccoli`).
-6. **Soups:** tap a soup → one "Add to your soup" window with two
-   sections: cheese (7, $0.50 each) and veggies (13, $0.60 each —
-   Red Onions, Jalapeños, ...). Multi-pick; Done with nothing adds
-   the soup plain, and "No changes" adds it plain in one tap. The
-   line shows the additions (e.g. `+ Cheddar, Red Onions`).
-   Square's data has **no sour cream in any set**, so sour cream
-   stays in the line's Notes field — nothing was invented for it.
+6. **Soups:** tap a soup → one "Add to your soup" window with
+   three sections: cheese (7, $0.50 each), veggies (13, $0.60 each
+   — Red Onions, Jalapeños, ...), and Extras (Sour Cream, $0.50).
+   Multi-pick; Done with nothing adds the soup plain, and "No
+   changes" adds it plain in one tap. The line shows the additions
+   (e.g. `+ Cheddar, Sour Cream`). Sour Cream is a **custom option
+   (Vince, Nov 22 2026)** — it exists in none of Square's sets, so
+   it is defined in our own `SOUP_EXTRAS` constant in `app.js` at
+   $0.50, not in the Square data; a re-pull from Square can't wipe
+   it.
 
 Modifier prices flow into the line total, subtotal, 6% tax, and
 total (integer cents throughout). Lines with different modifiers
@@ -177,10 +188,6 @@ behind a 4-digit code (Vince, Nov 22 2026):
   data. If Vince wants mayo/mustard/etc. as tappable options,
   the set has to be created in Square first, then read into
   `modifiers.json` like the others — do not invent prices.
-- **Sour cream:** no sour cream exists in any Square modifier set
-  (Cream Cheese in the cheese set is not sour cream). Soup
-  add-ons offer cheese + veggies only; sour cream stays in the
-  line's Notes field until a set with it exists in Square.
 
 ## Menu source
 
@@ -252,7 +259,8 @@ Seltzers, Cider, NA Beer, Soda & More, Kegs).
 1. Tap a category tab, tap items to add them. Tapping a pizza opens the
    size picker (12"/16"/18"/GF 10") with per-size prices, then the
    topping flow: whole / left / right for extra toppings on every
-   pizza (specialty pizzas can also skip toppings entirely). Tapping
+   pizza (specialty pizzas can also skip toppings entirely), then
+   sauces on the side ($0.50 each, with quantity steppers). Tapping
    wings opens the flavor flow (flavor → celery → extras). Tapping
    a sandwich opens cheese → veggies → meats; tapping a pasta opens
    sauce → noodle → add-ins; tapping a soup opens the add-ons

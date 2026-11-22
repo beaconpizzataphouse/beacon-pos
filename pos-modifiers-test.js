@@ -116,15 +116,22 @@ check("no condiment set in Square data",
   Object.keys(MODS.sets).every(function (k) { return k.indexOf("condiment") === -1; }));
 check("veggie add-ons have no No-... removal options",
   MODS.sets.veggie_addons.every(function (o) { return o[0].indexOf("No ") !== 0; }));
-/* Square has no sour cream in any set — the soup flow can't offer it;
-   it stays in the Notes field, like condiments. (Cream Cheese in the
-   cheese set is not sour cream.) */
+/* Square has no sour cream in any set — so it is NOT a Square
+   option. The soup flow offers it anyway from our own custom
+   SOUP_EXTRAS constant (Vince, Nov 22 2026), $0.50. (Cream Cheese
+   in the cheese set is not sour cream.) */
 check("sour cream is not in any modifier set",
   Object.keys(MODS.sets).every(function (k) {
     return MODS.sets[k].every(function (o) {
       return o[0].toLowerCase().indexOf("sour cream") === -1;
     });
   }));
+check("sour cream is our custom soup extra: Sour Cream $0.50",
+  POS.SOUP_EXTRAS.length === 1 &&
+  POS.SOUP_EXTRAS[0].name === "Sour Cream" &&
+  POS.SOUP_EXTRAS[0].priceCents === 50 &&
+  POS.soupExtraPrice("Sour Cream") === 50 &&
+  POS.soupExtraPrice("Nope") === 0);
 check("display fix: Green Oniond", POS.displayName("Green Oniond") === "Green Onions");
 check("display fix: Classic Pepperonii", POS.displayName("Classic Pepperonii") === "Classic Pepperoni");
 check("display fix: 1/2 &1/2", POS.displayName("1/2 &1/2") === "1/2 & 1/2");
@@ -223,6 +230,37 @@ line = POS.buildHalfHalfLine("Hawaiian", "gf", ["Jalapeños"], ["Olives"]);
 check("GF Hawaiian halves use 10in sets = $20.65", line.priceCents === 2065, "got " + line.priceCents);
 check("GF specialty half detail", line.detail === "Left: Jalapeños; Right: Olives", line.detail);
 
+/* ---------- pizza sauces math ---------- */
+console.log("pizza sauces math:");
+line = POS.buildPizzaLine("Build Your Own", "16", "whole", ["Pepperoni"], [["Ranch on the side", 2]]);
+check("16in BYO + pep + 2x Ranch = $23.95", line.priceCents === 2395, "got " + line.priceCents);
+check("pizza sauce detail follows toppings",
+  line.detail === "Pepperoni \u00b7 + Ranch \u00d72", line.detail);
+check("pizza sauce mods priced at $0.50 each", line.mods.length === 2 &&
+  line.mods[0].priceCents === 200 && line.mods[1].priceCents === 100 &&
+  line.mods[1].name === "Ranch");
+line = POS.buildPizzaLine("Build Your Own", "16", "whole", [], [["BBQ on the side", 1]]);
+check("plain BYO whole + 1x BBQ = $21.45", line.priceCents === 2145, "got " + line.priceCents);
+check("sauces alone are the whole detail", line.detail === "+ BBQ", line.detail);
+line = POS.buildHalfHalfLine("Build Your Own", "16", ["Pepperoni"], ["Hawaiian"],
+  [["Ranch on the side", 1], ["BBQ on the side", 2]]);
+check("half-and-half + Ranch + 2x BBQ = $26.15", line.priceCents === 2615, "got " + line.priceCents);
+check("half-and-half sauce detail",
+  line.detail === "Left: Pepperoni; Right: Hawaiian \u00b7 + Ranch, + BBQ \u00d72", line.detail);
+line = POS.buildPizzaLine("Jibe", "18", "whole", [], [["Ranch on the side", 3]]);
+check("plain Jibe + 3x Ranch = $31.45", line.priceCents === 3145, "got " + line.priceCents);
+check("3x Ranch detail", line.detail === "+ Ranch \u00d73", line.detail);
+line = POS.buildPizzaLine("Classic Pepperoni", "12", "whole", ["Extra Cheese"], [["Ranch on the side", 1]]);
+check("12in pepperoni + extra cheese + Ranch = $20.70", line.priceCents === 2070, "got " + line.priceCents);
+check("specialty topping + sauce detail",
+  line.detail === "+ Extra Cheese \u00b7 + Ranch", line.detail);
+line = POS.buildHalfHalfLine("Hawaiian", "18", ["Jalapenos"], ["Olives"], [["Ranch on the side", 1]]);
+check("specialty halves + Ranch = $30.05", line.priceCents === 3005, "got " + line.priceCents);
+check("specialty half + sauce detail",
+  line.detail === "Left: Jalape\u00f1os; Right: Olives \u00b7 + Ranch", line.detail);
+line = POS.buildPizzaLine("Jibe", "18", "whole", [], []);
+check("empty sauce list = plain pizza", line.priceCents === 2995 && line.detail === "");
+
 /* ---------- wing math ---------- */
 console.log("wing math:");
 line = POS.buildWingLine("Bone-in Wings", 1899, "Buffalo", [], "Celery", "none", false, []);
@@ -307,6 +345,16 @@ line = POS.buildSoupLine("Clam Chowder", 1099, ["Cheddar", "Pepper Jack"], ["Red
 check("chowder + 2 cheeses + 2 veggies = $13.19", line.priceCents === 1319, "got " + line.priceCents);
 check("soup jalapenos display fixed",
   line.detail === "+ Cheddar, Pepper Jack, Red Onions, Jalapeños", line.detail);
+line = POS.buildSoupLine("Clam Chowder", 1099, [], [], ["Sour Cream"]);
+check("chowder + sour cream = $11.49", line.priceCents === 1149, "got " + line.priceCents);
+check("sour cream detail", line.detail === "+ Sour Cream", line.detail);
+check("sour cream mod is $0.50", line.mods.length === 1 && line.mods[0].priceCents === 50);
+line = POS.buildSoupLine("Clam Chowder", 1099, ["Cheddar"], ["Red Onions"], ["Sour Cream"]);
+check("chowder + cheddar + onions + sour cream = $12.59", line.priceCents === 1259, "got " + line.priceCents);
+check("combined detail with sour cream",
+  line.detail === "+ Cheddar, Red Onions, Sour Cream", line.detail);
+line = POS.buildSoupLine("Clam Chowder", 1099, [], [], []);
+check("empty extras = plain soup", line.priceCents === 1099 && line.detail === "");
 
 /* ---------- flow state machine: wings ---------- */
 console.log("wing flow:");
@@ -407,6 +455,9 @@ check("second half heading says Now the right half",
   byId["flow-sub"].textContent.indexOf("Now the right half") !== -1,
   byId["flow-sub"].textContent);
 POS.flowDone(); // right half left plain
+check("Done on second half goes to sauces, does not finish",
+  POS.state.flow !== null && POS.state.flow.step === "sauces" && POS.state.cart.length === 0);
+POS.flowDone(); // sauces: nothing picked
 check("BYO flow adds 1 line", POS.state.cart.length === 1);
 check("BYO left Hawaiian line is $23.15", POS.state.cart[0].priceCents === 2315);
 check("BYO line detail shows both halves",
@@ -432,12 +483,18 @@ POS.flowPick("topping", "Extra Cheese");
 POS.flowPick("topping", "Extra Cheese"); // toggle off
 POS.flowPick("topping", "Mushrooms");
 POS.flowDone();
+check("specialty whole Done goes to sauces",
+  POS.state.flow !== null && POS.state.flow.step === "sauces");
+POS.flowDone(); // sauces: nothing picked
 check("specialty line $19.70 (pep 12 + mush)", POS.state.cart[1].priceCents === 1970,
   "got " + (POS.state.cart[1] && POS.state.cart[1].priceCents));
 check("specialty detail", POS.state.cart[1].detail === "+ Mushrooms", POS.state.cart[1].detail);
 
 POS.startPizzaFlow("Jibe", "18");
 POS.flowPick("skip-toppings");
+check("skip-toppings still offers sauces",
+  POS.state.flow !== null && POS.state.flow.step === "sauces");
+POS.flowDone(); // sauces: nothing picked
 check("skip from coverage adds plain specialty", POS.state.cart[2].priceCents === 2995 &&
   POS.state.cart[2].detail === "");
 
@@ -466,6 +523,7 @@ POS.flowPick("topping", "Pepperoni");
 POS.flowDone();
 POS.flowPick("topping", "Hawaiian");
 POS.flowDone();
+POS.flowDone(); // sauces: nothing picked
 check("half-and-half flow adds 1 line", POS.state.cart.length === 1);
 check("half-and-half line $24.65", POS.state.cart[0].priceCents === 2465,
   "got " + (POS.state.cart[0] && POS.state.cart[0].priceCents));
@@ -483,6 +541,7 @@ check("right-first continues to the left half",
   byId["flow-sub"].textContent);
 POS.flowPick("topping", "Pepperoni");
 POS.flowDone();
+POS.flowDone(); // sauces: nothing picked
 check("right-first line $23.15", POS.state.cart[1].priceCents === 2315,
   "got " + (POS.state.cart[1] && POS.state.cart[1].priceCents));
 check("detail still Left first", POS.state.cart[1].detail === "Left: Pepperoni; Right: Mushrooms",
@@ -496,6 +555,7 @@ check("plain first half still offers the other half",
   POS.state.flow !== null && POS.state.flow.halfStep === 2);
 POS.flowPick("topping", "Pineapple");
 POS.flowDone();
+POS.flowDone(); // sauces: nothing picked
 check("plain right + left pineapple $17.40", POS.state.cart[2].priceCents === 1740,
   "got " + (POS.state.cart[2] && POS.state.cart[2].priceCents));
 check("plain-half detail", POS.state.cart[2].detail === "Left: Pineapple; Right: cheese only",
@@ -521,6 +581,7 @@ check("second-half picks kept after Back + Next",
   POS.state.flow.picksBySide.right.pickedOrder.join(",") === "Hawaiian" &&
   byId["flow-options"].innerHTML.indexOf('class="opt-btn selected" data-action="topping" data-value="Hawaiian"') !== -1);
 POS.flowDone();
+POS.flowDone(); // sauces: nothing picked
 check("back-and-forth line $25.35", POS.state.cart[3].priceCents === 2535,
   "got " + (POS.state.cart[3] && POS.state.cart[3].priceCents));
 check("back-and-forth detail",
@@ -536,6 +597,7 @@ function halfHalf16() {
   POS.flowDone();
   POS.flowPick("topping", "Hawaiian");
   POS.flowDone();
+  POS.flowDone(); // sauces: nothing picked
 }
 halfHalf16();
 halfHalf16();
@@ -558,6 +620,7 @@ check("specialty Done on first half offers the other half",
   byId["flow-sub"].textContent.indexOf("Now the right half") !== -1);
 POS.flowPick("topping", "Olives");
 POS.flowDone();
+POS.flowDone(); // sauces: nothing picked
 check("specialty half-and-half adds 1 line", POS.state.cart.length === 1);
 check("specialty half-and-half line $29.55", POS.state.cart[0].priceCents === 2955,
   "got " + (POS.state.cart[0] && POS.state.cart[0].priceCents));
@@ -571,6 +634,7 @@ POS.flowPick("coverage", "right");
 POS.flowPick("topping", "Olives");
 POS.flowDone();
 POS.flowDone(); // left half: nothing picked
+POS.flowDone(); // sauces: nothing picked
 check("one-half-only specialty line $28.75", POS.state.cart[1].priceCents === 2875,
   "got " + (POS.state.cart[1] && POS.state.cart[1].priceCents));
 check("one-half-only detail, no cheese only",
@@ -594,6 +658,7 @@ check("specialty second-half picks kept after Back + Next",
   POS.state.flow.picksBySide.right.pickedOrder.join(",") === "Hawaiian" &&
   byId["flow-options"].innerHTML.indexOf('class="opt-btn selected" data-action="topping" data-value="Hawaiian"') !== -1);
 POS.flowDone();
+POS.flowDone(); // sauces: nothing picked
 check("specialty back-and-forth line $25.85", POS.state.cart[2].priceCents === 2585,
   "got " + (POS.state.cart[2] && POS.state.cart[2].priceCents));
 check("specialty back-and-forth detail",
@@ -624,11 +689,166 @@ function halfHalfHawaiian18() {
   POS.flowDone();
   POS.flowPick("topping", "Olives");
   POS.flowDone();
+  POS.flowDone(); // sauces: nothing picked
 }
 halfHalfHawaiian18();
 halfHalfHawaiian18();
 check("identical specialty half-and-half lines merge to qty 2",
   POS.state.cart.length === 1 && POS.state.cart[0].qty === 2);
+
+/* ---------- pizza sauces flow ---------- */
+console.log("pizza sauces flow:");
+POS.clearCart();
+POS.startPizzaFlow("Build Your Own", "16");
+POS.flowPick("coverage", "whole");
+POS.flowPick("topping", "Pepperoni");
+POS.flowDone();
+check("BYO whole Done goes to sauces",
+  POS.state.flow.step === "sauces" &&
+  byId["flow-sub"].textContent === "Sauces on the side? (optional)");
+check("pizza sauces step shows all 6 sauces with steppers",
+  (byId["flow-options"].innerHTML.match(/sauce-row/g) || []).length === 6 &&
+  byId["flow-options"].innerHTML.indexOf("sauce-plus") !== -1 &&
+  byId["flow-options"].innerHTML.indexOf("Ranch") !== -1);
+POS.flowPick("sauce-plus", "Ranch on the side");
+POS.flowPick("sauce-plus", "Ranch on the side");
+check("2x plus = qty 2 in the pizza flow",
+  POS.state.flow.sauces["Ranch on the side"] === 2);
+POS.flowDone();
+check("BYO + pep + 2x Ranch = $23.95", POS.state.cart[0].priceCents === 2395,
+  "got " + (POS.state.cart[0] && POS.state.cart[0].priceCents));
+check("pizza line detail shows toppings + sauces",
+  POS.state.cart[0].detail === "Pepperoni \u00b7 + Ranch \u00d72", POS.state.cart[0].detail);
+check("flow closed after sauces Done", POS.state.flow === null);
+
+/* skip path: Done with nothing on sauces = no sauces */
+POS.startPizzaFlow("Build Your Own", "16");
+POS.flowPick("coverage", "whole");
+POS.flowDone(); // no toppings
+POS.flowDone(); // no sauces
+check("plain BYO through sauces = base price, no detail",
+  POS.state.cart[1].priceCents === 2095 && POS.state.cart[1].detail === "");
+
+/* stepper minus-to-zero in the pizza flow */
+POS.startPizzaFlow("Build Your Own", "16");
+POS.flowPick("coverage", "whole");
+POS.flowDone(); // no toppings
+POS.flowPick("sauce-plus", "Ranch on the side");
+POS.flowPick("sauce-plus", "BBQ on the side");
+POS.flowPick("sauce-minus", "BBQ on the side");
+check("minus to zero drops the sauce from the order",
+  POS.state.flow.sauces["BBQ on the side"] === undefined &&
+  POS.state.flow.saucesOrder.indexOf("BBQ on the side") === -1);
+POS.flowPick("sauce-minus", "Ranch on the side");
+check("minus at 1 drops the sauce too",
+  POS.state.flow.sauces["Ranch on the side"] === undefined &&
+  POS.state.flow.saucesOrder.length === 0);
+POS.flowDone();
+check("sauces stepped back to zero = plain line, merges with the earlier plain one",
+  POS.state.cart.length === 2 && POS.state.cart[1].qty === 2 &&
+  POS.state.cart[1].priceCents === 2095 && POS.state.cart[1].detail === "");
+
+/* Back from sauces returns to toppings with picks kept */
+POS.startPizzaFlow("Build Your Own", "16");
+POS.flowPick("coverage", "whole");
+POS.flowPick("topping", "Pepperoni");
+POS.flowDone(); // to sauces
+POS.flowBack();
+check("back from sauces returns to toppings",
+  POS.state.flow.step === "toppings");
+check("topping pick kept after Back from sauces",
+  POS.state.flow.pickedOrder.join(",") === "Pepperoni" &&
+  byId["flow-options"].innerHTML.indexOf('class="opt-btn selected" data-action="topping" data-value="Pepperoni"') !== -1);
+POS.flowDone(); // forward to sauces again
+POS.flowPick("sauce-plus", "Ranch on the side");
+POS.flowDone();
+check("back-and-forth + Ranch = $23.45", POS.state.cart[2].priceCents === 2345,
+  "got " + (POS.state.cart[2] && POS.state.cart[2].priceCents));
+check("back-and-forth detail",
+  POS.state.cart[2].detail === "Pepperoni \u00b7 + Ranch", POS.state.cart[2].detail);
+
+/* specialty: skip toppings, still get sauces */
+POS.startPizzaFlow("Jibe", "18");
+POS.flowPick("skip-toppings");
+check("specialty skip goes to sauces", POS.state.flow.step === "sauces");
+POS.flowPick("sauce-plus", "Ranch on the side");
+POS.flowDone();
+check("plain Jibe + Ranch = $30.45", POS.state.cart[3].priceCents === 3045,
+  "got " + (POS.state.cart[3] && POS.state.cart[3].priceCents));
+check("plain specialty + sauce detail", POS.state.cart[3].detail === "+ Ranch",
+  POS.state.cart[3].detail);
+
+/* specialty whole with extra topping + sauce */
+POS.startPizzaFlow("Classic Pepperoni", "12");
+POS.flowPick("coverage", "whole");
+POS.flowPick("topping", "Mushrooms");
+POS.flowDone();
+POS.flowPick("sauce-plus", "BBQ on the side");
+POS.flowDone();
+check("pep 12 + mush + BBQ = $20.20", POS.state.cart[4].priceCents === 2020,
+  "got " + (POS.state.cart[4] && POS.state.cart[4].priceCents));
+check("specialty topping + sauce detail",
+  POS.state.cart[4].detail === "+ Mushrooms \u00b7 + BBQ", POS.state.cart[4].detail);
+
+/* skip-toppings clears picks made on the toppings screen */
+POS.startPizzaFlow("Classic Pepperoni", "12");
+POS.flowPick("coverage", "whole");
+POS.flowPick("topping", "Mushrooms");
+POS.flowPick("skip-toppings");
+POS.flowDone(); // no sauces
+check("skip after picking a topping rings up the plain pizza",
+  POS.state.cart[5].priceCents === 1895 && POS.state.cart[5].detail === "");
+
+/* half-and-half + sauces */
+POS.startPizzaFlow("Build Your Own", "16");
+POS.flowPick("coverage", "left");
+POS.flowPick("topping", "Pepperoni");
+POS.flowDone();
+POS.flowPick("topping", "Hawaiian");
+POS.flowDone();
+check("half-and-half Done goes to sauces", POS.state.flow.step === "sauces");
+POS.flowPick("sauce-plus", "Ranch on the side");
+POS.flowPick("sauce-plus", "Ranch on the side");
+POS.flowDone();
+check("half-and-half + 2x Ranch = $25.65", POS.state.cart[6].priceCents === 2565,
+  "got " + (POS.state.cart[6] && POS.state.cart[6].priceCents));
+check("half-and-half + sauce detail",
+  POS.state.cart[6].detail === "Left: Pepperoni; Right: Hawaiian \u00b7 + Ranch \u00d72",
+  POS.state.cart[6].detail);
+
+/* Back from sauces on a half flow returns to the second half */
+POS.startPizzaFlow("Build Your Own", "16");
+POS.flowPick("coverage", "left");
+POS.flowPick("topping", "Pepperoni");
+POS.flowDone();
+POS.flowPick("topping", "Hawaiian");
+POS.flowDone(); // to sauces
+POS.flowBack();
+check("back from sauces returns to the second half",
+  POS.state.flow.step === "toppings" && POS.state.flow.halfStep === 2 &&
+  byId["flow-sub"].textContent.indexOf("Now the right half") !== -1);
+POS.flowDone(); // forward to sauces again
+POS.flowDone(); // no sauces
+check("half flow after Back = $24.65, no sauces",
+  POS.state.cart[7].priceCents === 2465 && POS.state.cart[7].detail === "Left: Pepperoni; Right: Hawaiian",
+  POS.state.cart[7] && POS.state.cart[7].detail);
+
+/* identical pizza + sauce lines merge */
+POS.clearCart();
+function byo16PepRanch2() {
+  POS.startPizzaFlow("Build Your Own", "16");
+  POS.flowPick("coverage", "whole");
+  POS.flowPick("topping", "Pepperoni");
+  POS.flowDone();
+  POS.flowPick("sauce-plus", "Ranch on the side");
+  POS.flowPick("sauce-plus", "Ranch on the side");
+  POS.flowDone();
+}
+byo16PepRanch2();
+byo16PepRanch2();
+check("identical pizza + sauce lines merge to qty 2",
+  POS.state.cart.length === 1 && POS.state.cart[0].qty === 2 &&
+  POS.state.cart[0].priceCents === 2395);
 
 /* ---------- flow state machine: sandwich ---------- */
 console.log("sandwich flow:");
@@ -787,9 +1007,11 @@ console.log("soup flow:");
 POS.clearCart();
 POS.startSoupFlow("Clam Chowder", 1099);
 check("soup flow starts at addons", POS.state.flow.step === "addons");
-check("add-ons window shows Cheese + Veggies sections",
+check("add-ons window shows Cheese + Veggies + Extras sections",
   byId["flow-options"].innerHTML.indexOf("Cheese") !== -1 &&
-  byId["flow-options"].innerHTML.indexOf("Veggies") !== -1);
+  byId["flow-options"].innerHTML.indexOf("Veggies") !== -1 &&
+  byId["flow-options"].innerHTML.indexOf("Extras") !== -1 &&
+  byId["flow-options"].innerHTML.indexOf("Sour Cream") !== -1);
 check("add-ons window offers No changes shortcut",
   byId["flow-options"].innerHTML.indexOf("No changes") !== -1);
 POS.flowPick("cheese", "Cheddar");
@@ -805,22 +1027,45 @@ check("soup line detail", POS.state.cart[0].detail === "+ Cheddar, Red Onions",
   POS.state.cart[0].detail);
 check("flow closed after soup done", POS.state.flow === null);
 
+/* soup flow with sour cream */
+POS.clearCart();
+POS.startSoupFlow("Clam Chowder", 1099);
+POS.flowPick("cheese", "Cheddar");
+POS.flowPick("extra", "Sour Cream");
+POS.flowDone();
+check("soup flow with sour cream adds 1 line", POS.state.cart.length === 1);
+check("soup + cheddar + sour cream = $11.99", POS.state.cart[0].priceCents === 1199,
+  "got " + (POS.state.cart[0] && POS.state.cart[0].priceCents));
+check("soup sour cream detail", POS.state.cart[0].detail === "+ Cheddar, Sour Cream",
+  POS.state.cart[0].detail);
+
+/* toggling sour cream off removes it */
+POS.clearCart();
+POS.startSoupFlow("Clam Chowder", 1099);
+POS.flowPick("extra", "Sour Cream");
+POS.flowPick("extra", "Sour Cream");
+check("toggling sour cream off removes it", POS.state.flow.extrasOrder.length === 0);
+POS.flowDone();
+check("toggled-off sour cream leaves plain soup", POS.state.cart.length === 1 &&
+  POS.state.cart[0].priceCents === 1099 && POS.state.cart[0].detail === "");
+
 /* Done with nothing = plain soup */
+POS.clearCart();
 POS.startSoupFlow("Smoked Brisket Chili", 1099);
 POS.flowDone();
-check("done with nothing adds plain soup", POS.state.cart.length === 2 &&
-  POS.state.cart[1].priceCents === 1099 && POS.state.cart[1].detail === "");
+check("done with nothing adds plain soup", POS.state.cart.length === 1 &&
+  POS.state.cart[0].priceCents === 1099 && POS.state.cart[0].detail === "");
 
 /* skip-all adds the plain soup at once */
 POS.startSoupFlow("Clam Chowder", 1099);
 POS.flowPick("skip-all");
-check("skip-all adds plain soup", POS.state.cart.length === 3 &&
-  POS.state.cart[2].priceCents === 1099 && POS.state.cart[2].detail === "");
+check("skip-all adds plain soup", POS.state.cart.length === 2 &&
+  POS.state.cart[1].priceCents === 1099 && POS.state.cart[1].detail === "");
 
 /* Back cancels the flow */
 POS.startSoupFlow("Clam Chowder", 1099);
 POS.flowBack();
-check("back from add-ons cancels the flow", POS.state.flow === null && POS.state.cart.length === 3);
+check("back from add-ons cancels the flow", POS.state.flow === null && POS.state.cart.length === 2);
 
 /* identical soup lines merge */
 POS.clearCart();
@@ -846,17 +1091,20 @@ POS.flowPick("coverage", "whole");
 POS.flowPick("topping", "Pepperoni");
 POS.flowPick("topping", "Mushrooms");
 POS.flowDone();
+POS.flowDone(); // sauces: nothing picked
 POS.startPizzaFlow("Build Your Own", "16");
 POS.flowPick("coverage", "whole");
 POS.flowPick("topping", "Pepperoni");
 POS.flowPick("topping", "Mushrooms");
 POS.flowDone();
+POS.flowDone(); // sauces: nothing picked
 check("identical BYO lines merge to qty 2", POS.state.cart.length === 1 && POS.state.cart[0].qty === 2);
 POS.startPizzaFlow("Build Your Own", "16");
 POS.flowPick("coverage", "left");
 POS.flowPick("topping", "Pepperoni");
 POS.flowDone(); // onto the right half
 POS.flowDone(); // right half plain
+POS.flowDone(); // sauces: nothing picked
 check("different coverage is a separate line", POS.state.cart.length === 2);
 const t = POS.cartTotals();
 check("subtotal with modifiers $70.85", t.subtotalCents === 7085, "got " + t.subtotalCents); // 2420*2 + 2245
