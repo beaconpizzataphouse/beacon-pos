@@ -93,6 +93,18 @@ check("buffalo + chicken bacon ranch exist",
 check("9 sandwiches", POS.categoryById("sandwiches").items.length === 9);
 check("prime dip $16.99", POS.categoryById("sandwiches").items
   .find(function (i) { return i.name === "Beacon Prime Dip"; }).price === 16.99);
+check("2 soups", POS.categoryById("soups").items.length === 2);
+/* Soup prices deliberately differ from Square (Vince, Nov 22 2026):
+   Clam Chowder $10.99 (Square $7.99), Smoked Brisket Chili $10.99
+   (Square $9.99). PRICE_OVERRIDES in generate_menu.py keeps them
+   through regeneration. */
+check("clam chowder $10.99", POS.categoryById("soups").items
+  .find(function (i) { return i.name === "Clam Chowder"; }).price === 10.99);
+check("smoked brisket chili $10.99", POS.categoryById("soups").items
+  .find(function (i) { return i.name === "Smoked Brisket Chili"; }).price === 10.99);
+check("soup prices live in PRICE_OVERRIDES so regeneration keeps them",
+  fs.readFileSync("generate_menu.py", "utf8").indexOf('"Clam Chowder": 10.99') !== -1 &&
+  fs.readFileSync("generate_menu.py", "utf8").indexOf('"Smoked Brisket Chili": 10.99') !== -1);
 check("4 wing items", POS.categoryById("wings").items.length === 4);
 check("boneless 10 is $13.99", POS.categoryById("wings").items
   .find(function (i) { return i.name === "Boneless Wings — 10 pc"; }).price === 13.99);

@@ -3,8 +3,9 @@
 // DOM stubs (same pattern as pos-test.js).
 // Checks: modifier data, display-name fixes, BYO whole/half topping
 // math, specialty extra toppings (whole + half-and-half), wing
-// flavor + 1/2&1/2 flow, All Flats +$3, sauce-on-the-side math,
-// sandwich cheese/veggie/meat flow, pasta sauce/noodle/add-in flow,
+// flavor + 1/2&1/2 flow, All Flats +$3, sauce-on-the-side math
+// (multiples at $0.50 each), sandwich cheese/veggie/meat flow,
+// pasta sauce/noodle/add-in flow, soup add-ons flow,
 // flow navigation/back, cart merge rules with modifiers, and that
 // orders persist the detail.
 //
@@ -88,6 +89,12 @@ check("half sets have 42 each", ["left_10", "left_12", "left_16", "left_18",
   .every(function (k) { return MODS.sets[k].length === 42; }));
 check("9 wing flavors", MODS.sets.wing_flavors.length === 9);
 check("wing flavors all free", MODS.sets.wing_flavors.every(function (o) { return o[1] === 0; }));
+check("wing sauces on the side: 6 at $0.50 (ours; $0.15 in Square)",
+  MODS.sets.wing_sauce_side.length === 6 &&
+  MODS.sets.wing_sauce_side.every(function (o) { return o[1] === 0.5; }));
+check("wing sauce display names drop 'on the side'",
+  POS.displayName("Ranch on the side") === "Ranch" &&
+  POS.displayName("BBQ on the side") === "BBQ");
 check("cheese set: 7 at $0.50", MODS.sets.cheese.length === 7 &&
   MODS.sets.cheese.every(function (o) { return o[1] === 0.5; }));
 check("meats set: 7 (Bacon $2.50, Prime Rib $9.00)", MODS.sets.meats.length === 7 &&
@@ -109,6 +116,15 @@ check("no condiment set in Square data",
   Object.keys(MODS.sets).every(function (k) { return k.indexOf("condiment") === -1; }));
 check("veggie add-ons have no No-... removal options",
   MODS.sets.veggie_addons.every(function (o) { return o[0].indexOf("No ") !== 0; }));
+/* Square has no sour cream in any set — the soup flow can't offer it;
+   it stays in the Notes field, like condiments. (Cream Cheese in the
+   cheese set is not sour cream.) */
+check("sour cream is not in any modifier set",
+  Object.keys(MODS.sets).every(function (k) {
+    return MODS.sets[k].every(function (o) {
+      return o[0].toLowerCase().indexOf("sour cream") === -1;
+    });
+  }));
 check("display fix: Green Oniond", POS.displayName("Green Oniond") === "Green Onions");
 check("display fix: Classic Pepperonii", POS.displayName("Classic Pepperonii") === "Classic Pepperoni");
 check("display fix: 1/2 &1/2", POS.displayName("1/2 &1/2") === "1/2 & 1/2");
@@ -221,13 +237,25 @@ check("All Flats in detail", line.detail.indexOf("All Flats") !== -1, line.detai
 line = POS.buildWingLine("Bone-in Wings", 1899, "BBQ", [], "Celery", "All Drums", false, []);
 check("All Drums is free", line.priceCents === 1899);
 line = POS.buildWingLine("Bone-in Wings", 1899, "Plain", [], "No Celery", "none", false,
-  ["BBQ on the side", "Ranch on the side"]);
-check("2 sauces on the side = $19.29", line.priceCents === 1929, "got " + line.priceCents);
-check("sauces in detail", line.detail.indexOf("+ BBQ on the side") !== -1 &&
-  line.detail.indexOf("+ Ranch on the side") !== -1, line.detail);
+  [["BBQ on the side", 1], ["Ranch on the side", 1]]);
+check("2 sauces on the side = $19.99", line.priceCents === 1999, "got " + line.priceCents);
+check("sauces in detail", line.detail.indexOf("+ BBQ") !== -1 &&
+  line.detail.indexOf("+ Ranch") !== -1, line.detail);
+check("qty-1 sauce shows no x1", line.detail.indexOf("\u00d7") === -1, line.detail);
+line = POS.buildWingLine("Bone-in Wings", 1899, "Buffalo", [], "Celery", "none", false,
+  [["Ranch on the side", 3]]);
+check("3x Ranch on the side = $20.49", line.priceCents === 2049, "got " + line.priceCents);
+check("multi-qty sauce shows count", line.detail.indexOf("Ranch \u00d73") !== -1, line.detail);
+check("multi-qty sauce is one mod at the combined price",
+  line.mods.length === 1 && line.mods[0].name === "Ranch" && line.mods[0].priceCents === 150,
+  JSON.stringify(line.mods));
+line = POS.buildWingLine("Bone-in Wings", 1899, "Buffalo", [], "Celery", "none", false,
+  [["Ranch on the side", 3], ["BBQ on the side", 1]]);
+check("3x Ranch + 1x BBQ = $20.99", line.priceCents === 2099, "got " + line.priceCents);
+check("mixed sauce detail", line.detail.indexOf("+ Ranch \u00d73, + BBQ") !== -1, line.detail);
 line = POS.buildWingLine("Bone-in Wings", 1899, "Vince's Wings", [], "Celery", "All Flats", true,
-  ["Louisiana on the side"]);
-check("flats + dry rub + sauce = $22.14", line.priceCents === 2214, "got " + line.priceCents);
+  [["Louisiana on the side", 1]]);
+check("flats + dry rub + sauce = $22.49", line.priceCents === 2249, "got " + line.priceCents);
 check("dry rub in detail", line.detail.indexOf("Spicy dry rub") !== -1, line.detail);
 line = POS.buildWingLine("Boneless Wings \u2014 10 pc", 1399, "Carolina", [], "Celery", "none", false, []);
 check("boneless 10 carolina = $13.99", line.priceCents === 1399);
@@ -265,6 +293,21 @@ line = POS.buildPastaLine("Spaghetti & Meatballs", 1699, null, null, ["Mushrooms
 check("add-ins only = $21.99", line.priceCents === 2199, "got " + line.priceCents);
 check("add-ins-only detail", line.detail === "+ Mushrooms, Anchovies", line.detail);
 
+/* ---------- soup math ---------- */
+console.log("soup math:");
+line = POS.buildSoupLine("Clam Chowder", 1099, ["Cheddar"], ["Red Onions"]);
+check("clam chowder + cheddar + red onions = $12.09", line.priceCents === 1209, "got " + line.priceCents);
+check("soup detail", line.detail === "+ Cheddar, Red Onions", line.detail);
+check("soup mods priced per set", line.mods.length === 2 &&
+  line.mods[0].priceCents === 50 && line.mods[1].priceCents === 60);
+check("soup line category is soups", line.category === "soups");
+line = POS.buildSoupLine("Smoked Brisket Chili", 1099, [], []);
+check("plain soup = base price, no detail", line.priceCents === 1099 && line.detail === "");
+line = POS.buildSoupLine("Clam Chowder", 1099, ["Cheddar", "Pepper Jack"], ["Red Onions", "Jalapenos"]);
+check("chowder + 2 cheeses + 2 veggies = $13.19", line.priceCents === 1319, "got " + line.priceCents);
+check("soup jalapenos display fixed",
+  line.detail === "+ Cheddar, Pepper Jack, Red Onions, Jalapeños", line.detail);
+
 /* ---------- flow state machine: wings ---------- */
 console.log("wing flow:");
 POS.clearCart();
@@ -287,15 +330,45 @@ check("celery pick advances to extras", POS.state.flow.step === "extras");
 check("bone-in extras offer All Flats",
   byId["flow-options"].innerHTML.indexOf("All Flats") !== -1);
 POS.flowPick("flats", "All Flats");
-POS.flowPick("sauce", "BBQ on the side");
+check("extras show sauce steppers",
+  byId["flow-options"].innerHTML.indexOf("sauce-row") !== -1 &&
+  byId["flow-options"].innerHTML.indexOf("sauce-plus") !== -1);
+POS.flowPick("sauce-plus", "BBQ on the side");
 POS.flowDone();
 check("wing flow adds 1 line", POS.state.cart.length === 1);
-check("wing line total $22.14", POS.state.cart[0].priceCents === 2214,
+check("wing line total $22.49", POS.state.cart[0].priceCents === 2249,
   "got " + (POS.state.cart[0] && POS.state.cart[0].priceCents));
 check("wing line detail", POS.state.cart[0].detail ===
-  "1/2 Buffalo, 1/2 BBQ \u00b7 No Celery \u00b7 All Flats \u00b7 + BBQ on the side",
+  "1/2 Buffalo, 1/2 BBQ \u00b7 No Celery \u00b7 All Flats \u00b7 + BBQ",
   POS.state.cart[0].detail);
 check("flow closed after done", POS.state.flow === null);
+
+/* sauce stepper: multiples, minus back down, minus at 0 is a no-op */
+POS.clearCart();
+POS.startWingFlow("Bone-in Wings", 1899);
+POS.flowPick("flavor", "Buffalo");
+POS.flowPick("celery", "Celery");
+POS.flowPick("sauce-minus", "Ranch on the side");
+check("minus at 0 does nothing", POS.state.flow.sauces["Ranch on the side"] === undefined &&
+  POS.state.flow.saucesOrder.length === 0);
+POS.flowPick("sauce-plus", "Ranch on the side");
+POS.flowPick("sauce-plus", "Ranch on the side");
+POS.flowPick("sauce-plus", "Ranch on the side");
+check("3x plus = qty 3", POS.state.flow.sauces["Ranch on the side"] === 3);
+POS.flowPick("sauce-minus", "Ranch on the side");
+check("minus drops qty to 2", POS.state.flow.sauces["Ranch on the side"] === 2);
+POS.flowPick("sauce-plus", "BBQ on the side");
+POS.flowPick("sauce-minus", "BBQ on the side");
+check("minus to 0 removes the sauce",
+  POS.state.flow.sauces["BBQ on the side"] === undefined &&
+  POS.state.flow.saucesOrder.indexOf("BBQ on the side") === -1);
+POS.flowPick("sauce-plus", "BBQ on the side");
+POS.flowDone();
+check("stepper order adds 1 line", POS.state.cart.length === 1);
+check("stepper line total $20.49", POS.state.cart[0].priceCents === 2049,
+  "got " + (POS.state.cart[0] && POS.state.cart[0].priceCents));
+check("stepper line detail", POS.state.cart[0].detail ===
+  "Buffalo \u00b7 Celery \u00b7 + Ranch \u00d72, + BBQ", POS.state.cart[0].detail);
 
 /* boneless: no flats/drums choice */
 POS.startWingFlow("Boneless Wings \u2014 10 pc", 1399);
@@ -708,6 +781,62 @@ alfredoSpaghetti();
 alfredoSpaghetti();
 check("identical pasta lines merge to qty 2",
   POS.state.cart.length === 1 && POS.state.cart[0].qty === 2);
+
+/* ---------- flow state machine: soup ---------- */
+console.log("soup flow:");
+POS.clearCart();
+POS.startSoupFlow("Clam Chowder", 1099);
+check("soup flow starts at addons", POS.state.flow.step === "addons");
+check("add-ons window shows Cheese + Veggies sections",
+  byId["flow-options"].innerHTML.indexOf("Cheese") !== -1 &&
+  byId["flow-options"].innerHTML.indexOf("Veggies") !== -1);
+check("add-ons window offers No changes shortcut",
+  byId["flow-options"].innerHTML.indexOf("No changes") !== -1);
+POS.flowPick("cheese", "Cheddar");
+POS.flowPick("veggie", "Red Onions");
+POS.flowPick("veggie", "Red Onions");
+check("toggling a veggie off removes it", POS.state.flow.veggiesOrder.length === 0);
+POS.flowPick("veggie", "Red Onions");
+POS.flowDone();
+check("soup flow adds 1 line", POS.state.cart.length === 1);
+check("soup line $12.09", POS.state.cart[0].priceCents === 1209,
+  "got " + (POS.state.cart[0] && POS.state.cart[0].priceCents));
+check("soup line detail", POS.state.cart[0].detail === "+ Cheddar, Red Onions",
+  POS.state.cart[0].detail);
+check("flow closed after soup done", POS.state.flow === null);
+
+/* Done with nothing = plain soup */
+POS.startSoupFlow("Smoked Brisket Chili", 1099);
+POS.flowDone();
+check("done with nothing adds plain soup", POS.state.cart.length === 2 &&
+  POS.state.cart[1].priceCents === 1099 && POS.state.cart[1].detail === "");
+
+/* skip-all adds the plain soup at once */
+POS.startSoupFlow("Clam Chowder", 1099);
+POS.flowPick("skip-all");
+check("skip-all adds plain soup", POS.state.cart.length === 3 &&
+  POS.state.cart[2].priceCents === 1099 && POS.state.cart[2].detail === "");
+
+/* Back cancels the flow */
+POS.startSoupFlow("Clam Chowder", 1099);
+POS.flowBack();
+check("back from add-ons cancels the flow", POS.state.flow === null && POS.state.cart.length === 3);
+
+/* identical soup lines merge */
+POS.clearCart();
+function cheddarChowder() {
+  POS.startSoupFlow("Clam Chowder", 1099);
+  POS.flowPick("cheese", "Cheddar");
+  POS.flowDone();
+}
+cheddarChowder();
+cheddarChowder();
+check("identical soup lines merge to qty 2",
+  POS.state.cart.length === 1 && POS.state.cart[0].qty === 2);
+POS.startSoupFlow("Clam Chowder", 1099);
+POS.flowPick("cheese", "Swiss");
+POS.flowDone();
+check("different cheese is a separate line", POS.state.cart.length === 2);
 
 /* ---------- cart merge + totals + orders ---------- */
 console.log("cart merge, totals, orders:");

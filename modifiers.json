@@ -11,14 +11,21 @@
   "Jalapenos": "Jalapeños",
   "Mediteranean": "Mediterranean",
   "Peperoncini": "Pepperoncini",
-  "Pepperoncinni": "Pepperoncini"
+  "Pepperoncinni": "Pepperoncini",
+  "Ranch on the side": "Ranch",
+  "Blue Cheese on the side": "Blue Cheese",
+  "BBQ on the side": "BBQ",
+  "Carolina on the side": "Carolina",
+  "Buffalo on the side": "Buffalo",
+  "Louisiana on the side": "Louisiana"
  },
  "notes": [
   "Prices are dollars as shown in Square. null price = blank price field in Square (treat as 0.00).",
   "Half-pizza sets (left_*/right_*): Square prefixes every option 'Left ' or 'Right '. Prefixes are stripped here; the app knows which side it is showing. Each half set = 29 toppings first, then 13 specialty-pizza halves.",
   "Square spelling quirks are preserved in the data; use display_name_fixes for what the screen shows.",
   "Whole-pizza topping prices do NOT rise smoothly with size in Square (e.g. Extra Cheese 1.00/1.25/0.75/1.00 across 10/12/16/18). Recorded as shown; do not 'smooth' them.",
-  "Left and right half lists are mostly identical but differ on some prices (see the Square read). Both sides are recorded in full here."
+  "Left and right half lists are mostly identical but differ on some prices (see the Square read). Both sides are recorded in full here.",
+  "Wing sauces on the side (wing_sauce_side) are $0.15 each in Square; OUR data uses $0.50 each per Vince (2026-11-22). Deliberate divergence from Square — do not \"correct\" back to $0.15. Square itself is unchanged."
  ],
  "sets": {
   "add_dry_rub": [
@@ -139,7 +146,7 @@
     1.5
    ],
    [
-    "Jalape\u00f1os",
+    "Jalapeños",
     0.6
    ],
    [
@@ -301,7 +308,7 @@
     0.75
    ],
    [
-    "Jalape\u00f1os",
+    "Jalapeños",
     0.35
    ],
    [
@@ -471,7 +478,7 @@
     1.0
    ],
    [
-    "Jalape\u00f1os",
+    "Jalapeños",
     0.45
    ],
    [
@@ -1109,7 +1116,7 @@
     0.75
    ],
    [
-    "Jalape\u00f1os",
+    "Jalapeños",
     0.35
    ],
    [
@@ -1843,7 +1850,7 @@
     1.5
    ],
    [
-    "Jalape\u00f1os",
+    "Jalapeños",
     0.6
    ],
    [
@@ -1961,7 +1968,7 @@
     1.5
    ],
    [
-    "Jalape\u00f1os",
+    "Jalapeños",
     0.75
    ],
    [
@@ -2079,7 +2086,7 @@
     2.0
    ],
    [
-    "Jalape\u00f1os",
+    "Jalapeños",
     1.25
    ],
    [
@@ -2197,7 +2204,7 @@
     2.5
    ],
    [
-    "Jalape\u00f1os",
+    "Jalapeños",
     1.5
    ],
    [
@@ -2290,27 +2297,27 @@
   "wing_sauce_side": [
    [
     "Ranch on the side",
-    0.15
+    0.5
    ],
    [
     "Blue Cheese on the side",
-    0.15
+    0.5
    ],
    [
     "BBQ on the side",
-    0.15
+    0.5
    ],
    [
     "Carolina on the side",
-    0.15
+    0.5
    ],
    [
     "Buffalo on the side",
-    0.15
+    0.5
    ],
    [
     "Louisiana on the side",
-    0.15
+    0.5
    ]
   ],
   "wing_side": [

@@ -3,13 +3,16 @@
    modifier lists, read from the Dashboard Nov 22 2026). Do not
    hand-edit prices here; fix them in Square, re-read modifiers.json,
    and re-run generate_modifiers.py.
-   Prices are in dollars, as Square lists them, except one noted below.
+   Prices are in dollars, as Square lists them, except two noted below.
    A null price means Square's price field was blank — the app treats
    it as $0.00.
    NOTE: Left Side 10" "Chicken Bacon Ranch" is $310.00 in Square
    (every other size/side is $2.60-$3.25) — almost certainly a typo.
    Per Vince (Nov 22 2026) Square is left alone and OUR data uses
    $3.10. Do not "correct" it back to $310.00.
+   NOTE: wing sauces on the side (wing_sauce_side) are $0.15 each
+   in Square; OUR data uses $0.50 each per Vince (Nov 22 2026).
+   Deliberate divergence — do not "correct" it back to $0.15.
 */
 window.BEACON_MODIFIERS = {
   "source": "Square Dashboard > Items > Modifiers for Beacon Pizza and Tap House, read 2026-11-22 ~00:06 PST by browser (read-only, nothing changed). 27 sets, 562 options. (The browser's report said 28 sets, but the sets it listed number 27; the 562 option count matches exactly.)",
@@ -2283,27 +2286,27 @@ window.BEACON_MODIFIERS = {
     "wing_sauce_side": [
       [
         "Ranch on the side",
-        0.15
+        0.5
       ],
       [
         "Blue Cheese on the side",
-        0.15
+        0.5
       ],
       [
         "BBQ on the side",
-        0.15
+        0.5
       ],
       [
         "Carolina on the side",
-        0.15
+        0.5
       ],
       [
         "Buffalo on the side",
-        0.15
+        0.5
       ],
       [
         "Louisiana on the side",
-        0.15
+        0.5
       ]
     ],
     "wing_side": [
@@ -2324,6 +2327,12 @@ window.BEACON_MODIFIERS = {
     "Mediteranean": "Mediterranean",
     "Peperoncini": "Pepperoncini",
     "Pepperoncinni": "Pepperoncini",
+    "Ranch on the side": "Ranch",
+    "Blue Cheese on the side": "Blue Cheese",
+    "BBQ on the side": "BBQ",
+    "Carolina on the side": "Carolina",
+    "Buffalo on the side": "Buffalo",
+    "Louisiana on the side": "Louisiana",
     "1/2 &1/2": "1/2 & 1/2",
     "1/2 Vinces Wings": "1/2 Vince's Wings",
     "1/2 Spicy Dry rub": "1/2 Spicy Dry Rub"

@@ -21,8 +21,8 @@ order only. There is no payment flow here, by design.
 | `modifiers.json` | Modifier lists read from the Square Dashboard (27 sets, 562 options with prices) |
 | `modifiers.js` | Modifier data — **generated, do not hand-edit** (see below) |
 | `generate_modifiers.py` | Builds `modifiers.js` from `modifiers.json` |
-| `pos-test.js` | Regression harness (125 checks): menu, cart, tax, orders, reports, Reports PIN lock — run with `node pos-test.js` |
-| `pos-modifiers-test.js` | Modifier-flow harness (218 checks): topping/wing/sandwich/pasta math, flows, merge rules, report modifier revenue — run with `node pos-modifiers-test.js` |
+| `pos-test.js` | Regression harness (129 checks): menu, cart, tax, orders, reports, Reports PIN lock — run with `node pos-test.js` |
+| `pos-modifiers-test.js` | Modifier-flow harness (255 checks): topping/wing/sandwich/pasta/soup math, flows, merge rules, report modifier revenue — run with `node pos-modifiers-test.js` |
 
 ## Modifier source
 
@@ -31,8 +31,9 @@ the Square Dashboard > Items > Modifiers (read-only, Nov 22 2026):
 whole-pizza topping sets per size (29 options each), half-pizza sets
 per side per size (42 each = 29 toppings + 13 specialty-pizza halves),
 wing flavors (9, all free), celery choice, All Flats (+$3.00),
-sauces on the side ($0.15), plus cheese/meats/veggie/pasta sets for
-later. Every price is exact — nothing is hand-copied. To refresh,
+sauces on the side ($0.50 each — $0.15 in Square, see below), plus
+cheese/meats/veggie/pasta sets for later. Every price is exact —
+nothing is hand-copied, except the two divergences below. To refresh,
 re-read the Dashboard into `modifiers.json` and re-run
 `generate_modifiers.py`.
 
@@ -43,7 +44,14 @@ ours, so `modifiers.json` / `modifiers.js` use **$3.10**; Square itself
 still shows $310.00 and has NOT been changed. Do not "correct" our
 $3.10 back to $310.00.
 
-## Modifier flows (pizza + wings + sandwiches + pasta)
+**Deliberate price change:** wing sauces on the side are **$0.15**
+each in Square; ours are **$0.50** each per Vince (Nov 22 2026).
+`modifiers.json` / `modifiers.js` carry $0.50 — do not "correct" it
+back to $0.15. Square itself is unchanged. (Scope: the wing
+sauce-on-the-side set only — the standalone Ranch / Marinara side
+items in the menu keep their Square menu prices.)
+
+## Modifier flows (pizza + wings + sandwiches + pasta + soups)
 
 One question per window, big buttons, Back on every step:
 
@@ -72,9 +80,10 @@ One question per window, big buttons, Back on every step:
    picker (9 flavors, required, all free) → if "1/2 & 1/2", a second
    picker for the two half flavors (exactly 2) → celery choice
    (Celery / No Celery, required) → one extras screen: flats/drums
-   (bone-in only), spicy dry rub, extra sauces on the side ($0.15
-   each). The line shows flavor + choices
-   (e.g. `Buffalo · Celery · All Flats · + BBQ on the side`).
+   (bone-in only), spicy dry rub, extra sauces on the side ($0.50
+   each, with a − qty + stepper so the crew can add multiples —
+   e.g. three ranches). The line shows flavor + choices
+   (e.g. `Buffalo · Celery · All Flats · + Ranch ×3, + BBQ`).
 4. **Sandwiches:** tap a sandwich → cheese picker (7 cheeses,
    $0.50 each) → veggie add-ons (13, $0.60 each — lettuce,
    tomatoes, pickles, ...) → meats (7, e.g. Bacon $2.50, Prime
@@ -92,13 +101,20 @@ One question per window, big buttons, Back on every step:
    means kept as it comes); add-ins are multi-pick. "No changes"
    on the first step adds the pasta plain. The line shows the
    choices (e.g. `Pink Sauce · Gluten Free · + Chicken, Broccoli`).
+6. **Soups:** tap a soup → one "Add to your soup" window with two
+   sections: cheese (7, $0.50 each) and veggies (13, $0.60 each —
+   Red Onions, Jalapeños, ...). Multi-pick; Done with nothing adds
+   the soup plain, and "No changes" adds it plain in one tap. The
+   line shows the additions (e.g. `+ Cheddar, Red Onions`).
+   Square's data has **no sour cream in any set**, so sour cream
+   stays in the line's Notes field — nothing was invented for it.
 
 Modifier prices flow into the line total, subtotal, 6% tax, and
 total (integer cents throughout). Lines with different modifiers
 stay separate; identical lines merge. The notes field still works
 on every line. If `modifiers.js` fails to load, pizzas, wings,
-sandwiches, and pastas fall back to the old plain add (no flow)
-so ordering never breaks.
+sandwiches, pastas, and soups fall back to the old plain add (no
+flow) so ordering never breaks.
 
 ## Sales report
 
@@ -161,13 +177,22 @@ behind a 4-digit code (Vince, Nov 22 2026):
   data. If Vince wants mayo/mustard/etc. as tappable options,
   the set has to be created in Square first, then read into
   `modifiers.json` like the others — do not invent prices.
+- **Sour cream:** no sour cream exists in any Square modifier set
+  (Cream Cheese in the cheese set is not sour cream). Soup
+  add-ons offer cheese + veggies only; sour cream stays in the
+  line's Notes field until a set with it exists in Square.
 
 ## Menu source
 
 `menu.js` is generated from `../beacon-kds/square-catalog-2026-11-21.csv`
 (351 active Square items) by `generate_menu.py`. Every price is exact —
-nothing is hand-copied. To refresh after a new Square export, drop the new
-CSV next to the script (or update the `SRC` path) and re-run it.
+nothing is hand-copied, except two soup prices that deliberately
+differ from Square (Vince, Nov 22 2026): Clam Chowder **$10.99**
+(Square $7.99) and Smoked Brisket Chili **$10.99** (Square $9.99).
+They live in `PRICE_OVERRIDES` in `generate_menu.py`, so they survive
+regeneration — the script fails if an override name stops matching.
+To refresh after a new Square export, drop the new CSV next to the
+script (or update the `SRC` path) and re-run it.
 
 Result: **280 menu entries** — 14 specialty pizzas (12"/16"/18" + GF 10"
 cauliflower crust), 9 sandwiches, 4 wing items, 9 pastas, 3 salad bar
@@ -230,7 +255,8 @@ Seltzers, Cider, NA Beer, Soda & More, Kegs).
    pizza (specialty pizzas can also skip toppings entirely). Tapping
    wings opens the flavor flow (flavor → celery → extras). Tapping
    a sandwich opens cheese → veggies → meats; tapping a pasta opens
-   sauce → noodle → add-ins. Every step is skippable, and "No
+   sauce → noodle → add-ins; tapping a soup opens the add-ons
+   picker (cheese + veggies). Every step is skippable, and "No
    changes" on the first step adds the item plain. Other items add
    straight to the order.
 2. The order panel (right side) shows lines newest first, so what

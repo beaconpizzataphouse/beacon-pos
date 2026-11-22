@@ -60,7 +60,7 @@
     orderType: "dine-in",
     tableName: "",
     pendingPizza: null,     // pizza awaiting a size choice
-    flow: null,             // active modifier flow, see startPizzaFlow/startWingFlow/startSandwichFlow/startPastaFlow
+    flow: null,             // active modifier flow, see startPizzaFlow/startWingFlow/startSandwichFlow/startPastaFlow/startSoupFlow
     lastOrder: null,
     report: { period: "today", itemsMode: "gross", catsMode: "gross" },
     reportsUnlocked: false,  // in-memory only; leaving Reports (or reloading) locks it again
@@ -278,9 +278,11 @@
   /* Build a wings cart line from a finished modifier flow.
      flavor: raw wing_flavors name; halves: raw half_half_wings names
      (only when flavor is 1/2 & 1/2); celery: "Celery"|"No Celery";
-     flats: "none"|"All Flats"|"All Drums"; sauceNames: raw
-     wing_sauce_side names. */
-  function buildWingLine(name, priceCents, flavor, halves, celery, flats, dryRub, sauceNames) {
+     flats: "none"|"All Flats"|"All Drums"; sauceQtys: [[raw
+     wing_sauce_side name, qty], ...] in tap order — sauces on the
+     side are $0.50 each in OUR data ($0.15 in Square; Vince,
+     Nov 22 2026) and a qty above 1 shows as "Ranch ×3". */
+  function buildWingLine(name, priceCents, flavor, halves, celery, flats, dryRub, sauceQtys) {
     var mods = [];
     var parts = [];
     if (flavor === HALF_HALF_FLAVOR) {
@@ -296,9 +298,11 @@
       parts.push("All Drums");
     }
     if (dryRub) parts.push("Spicy dry rub");
-    var sauces = (sauceNames || []).map(function (n) {
-      mods.push({ name: displayName(n), priceCents: modPrice("wing_sauce_side", n) });
-      return "+ " + displayName(n);
+    var sauces = (sauceQtys || []).map(function (sq) {
+      var qty = sq[1] || 1;
+      mods.push({ name: displayName(sq[0]),
+                  priceCents: modPrice("wing_sauce_side", sq[0]) * qty });
+      return "+ " + displayName(sq[0]) + (qty > 1 ? " \u00d7" + qty : "");
     });
     if (sauces.length) parts.push(sauces.join(", "));
     var total = priceCents;
@@ -356,6 +360,29 @@
     for (var i = 0; i < mods.length; i++) total += mods[i].priceCents;
     return { name: name, size: "", priceCents: total,
              detail: parts.join(" \u00b7 "), mods: mods, category: "pasta" };
+  }
+
+  /* Build a soup cart line from a finished add-ons flow.
+     cheeseNames / veggieNames: raw Square option names, in tap
+     order, priced from the cheese / veggie_addons sets. Nothing
+     picked = plain soup. Square's data has no sour cream in any
+     set, so sour cream stays in the Notes field — nothing was
+     invented for it. */
+  function buildSoupLine(name, priceCents, cheeseNames, veggieNames) {
+    var mods = [];
+    function addMods(setKey, names) {
+      (names || []).forEach(function (n) {
+        mods.push({ name: displayName(n), priceCents: modPrice(setKey, n) });
+      });
+    }
+    addMods("cheese", cheeseNames);
+    addMods("veggie_addons", veggieNames);
+    var total = priceCents;
+    for (var i = 0; i < mods.length; i++) total += mods[i].priceCents;
+    var detail = mods.length
+      ? "+ " + mods.map(function (m) { return m.name; }).join(", ") : "";
+    return { name: name, size: "", priceCents: total,
+             detail: detail, mods: mods, category: "soups" };
   }
 
   function findLine(key) {
@@ -1138,10 +1165,12 @@
      (each step multi-pick, Done with nothing = no change; "No
      changes" on the first step adds the sandwich plain). Pasta:
      sauce -> noodle -> add-ins (sauce and noodle are single-pick
-     with a Skip button; add-ins are multi-pick). Single-pick steps
-     advance on tap; multi-pick steps have a Done button. Back
-     returns to the previous step, or to the size picker for pizzas
-     / closes the flow for wings, sandwiches, and pastas. */
+     with a Skip button; add-ins are multi-pick). Soup: one add-ons
+     window (cheese + veggies, multi-pick; Done with nothing = plain
+     soup). Single-pick steps advance on tap; multi-pick steps have
+     a Done button. Back returns to the previous step, or to the size
+     picker for pizzas / closes the flow for wings, sandwiches,
+     pastas, and soups. */
   function startPizzaFlow(pizzaName, sizeKey) {
     var isBYO = pizzaName === BYO_NAME;
     state.flow = {
@@ -1164,7 +1193,9 @@
       kind: "wings", name: name, priceCents: priceCents,
       boneIn: name.indexOf("Bone-in") === 0,
       step: "flavor", flavor: null, halves: [], celery: null,
-      flats: "none", dryRub: false, sauces: {}
+      flats: "none", dryRub: false,
+      /* sauces on the side take multiples: name -> qty, in tap order */
+      sauces: {}, saucesOrder: []
     };
     renderFlow();
     var modal = el("flow-modal");
@@ -1189,6 +1220,18 @@
       kind: "pasta", name: name, priceCents: priceCents,
       step: "sauce", sauce: null, noodle: null,
       addins: {}, addinsOrder: []
+    };
+    renderFlow();
+    var modal = el("flow-modal");
+    if (modal) modal.hidden = false;
+  }
+
+  function startSoupFlow(name, priceCents) {
+    state.flow = {
+      kind: "soup", name: name, priceCents: priceCents,
+      step: "addons",
+      cheese: {}, cheeseOrder: [],
+      veggies: {}, veggiesOrder: []
     };
     renderFlow();
     var modal = el("flow-modal");
@@ -1223,6 +1266,20 @@
     return '<div class="flow-grid">' + options.map(function (o) {
       return optBtnHTML("topping", o.name, o.display, o.priceCents, !!picked[o.name]);
     }).join("") + "</div>";
+  }
+
+  /* One sauce-on-the-side row: name + unit price, and a − qty +
+     stepper. Sauces take multiples ($0.50 each in our data). */
+  function sauceStepperHTML(o, qty) {
+    return '<div class="sauce-row"><span class="sauce-name">' + esc(o.display) +
+      '<span class="sauce-price">+' + fmt(o.priceCents) + " each</span></span>" +
+      '<span class="sauce-stepper">' +
+      '<button type="button" class="qty-btn" data-action="sauce-minus" data-value="' +
+      esc(o.name) + '"' + (qty <= 0 ? " disabled" : "") + ">&minus;</button>" +
+      '<span class="qty">' + qty + "</span>" +
+      '<button type="button" class="qty-btn" data-action="sauce-plus" data-value="' +
+      esc(o.name) + '">+</button>' +
+      "</span></div>";
   }
 
   function renderFlow() {
@@ -1314,10 +1371,10 @@
         }
         html += '<h3 class="opt-section">Dry rub</h3><div class="flow-grid">' +
           optBtnHTML("dryrub", "dryrub", "Add spicy dry rub", 0, f.dryRub) + "</div>";
-        html += '<h3 class="opt-section">Sauces on the side</h3><div class="flow-grid">' +
+        html += '<h3 class="opt-section">Sauces on the side</h3>' +
           modOptions("wing_sauce_side").map(function (o) {
-            return optBtnHTML("sauce", o.name, o.display, o.priceCents, !!f.sauces[o.name]);
-          }).join("") + "</div>";
+            return sauceStepperHTML(o, f.sauces[o.name] || 0);
+          }).join("");
         footHTML = footBackHTML("Back") + footDoneHTML("Add to order", false);
       }
     } else if (f.kind === "sandwich") {
@@ -1368,6 +1425,20 @@
         }).join("") + "</div>";
         footHTML = footBackHTML("Back") + footDoneHTML("Add to order", false);
       }
+    } else if (f.kind === "soup") {
+      t = f.name;
+      s = "Add to your soup? (optional)";
+      html = '<h3 class="opt-section">Cheese</h3><div class="flow-grid">' +
+        modOptions("cheese").map(function (o) {
+          return optBtnHTML("cheese", o.name, o.display, o.priceCents, !!f.cheese[o.name]);
+        }).join("") + "</div>" +
+        '<h3 class="opt-section">Veggies</h3><div class="flow-grid">' +
+        modOptions("veggie_addons").map(function (o) {
+          return optBtnHTML("veggie", o.name, o.display, o.priceCents, !!f.veggies[o.name]);
+        }).join("") + "</div>" +
+        '<button type="button" class="flow-skip" data-action="skip-all">' +
+        "No changes — add it as it comes</button>";
+      footHTML = footBackHTML("Back") + footDoneHTML("Add to order", false);
     }
     if (title) title.textContent = t;
     if (sub) sub.textContent = s;
@@ -1432,9 +1503,19 @@
     } else if (action === "dryrub") {
       f.dryRub = !f.dryRub;
       renderFlow();
-    } else if (action === "sauce") {
-      if (f.sauces[value]) delete f.sauces[value];
-      else f.sauces[value] = true;
+    } else if (action === "sauce-plus") {
+      /* sauces on the side take multiples: name -> qty, tap order kept */
+      if (!f.sauces[value]) { f.sauces[value] = 0; f.saucesOrder.push(value); }
+      f.sauces[value] += 1;
+      renderFlow();
+    } else if (action === "sauce-minus") {
+      if (f.sauces[value]) {
+        f.sauces[value] -= 1;
+        if (f.sauces[value] === 0) {
+          delete f.sauces[value];
+          f.saucesOrder = f.saucesOrder.filter(function (n) { return n !== value; });
+        }
+      }
       renderFlow();
     } else if (action === "cheese") {
       togglePick(f.cheese, f.cheeseOrder, value);
@@ -1462,6 +1543,7 @@
     } else if (action === "skip-all") {
       if (f.kind === "sandwich") finishSandwichFlow();
       else if (f.kind === "pasta") finishPastaFlow();
+      else if (f.kind === "soup") finishSoupFlow();
     }
   }
 
@@ -1497,6 +1579,8 @@
       if (f.step === "sauce") closeFlow();
       else if (f.step === "noodle") { f.step = "sauce"; renderFlow(); }
       else { f.step = "noodle"; renderFlow(); }
+    } else if (f.kind === "soup") {
+      closeFlow();
     }
   }
 
@@ -1520,6 +1604,7 @@
     else if (f.kind === "sandwich" && f.step === "veggies") { f.step = "meats"; renderFlow(); }
     else if (f.kind === "sandwich" && f.step === "meats") finishSandwichFlow();
     else if (f.kind === "pasta" && f.step === "addins") finishPastaFlow();
+    else if (f.kind === "soup" && f.step === "addons") finishSoupFlow();
   }
 
   function finishPizzaFlow() {
@@ -1540,8 +1625,9 @@
   function finishWingFlow() {
     var f = state.flow;
     if (!f) return;
+    var sauceQtys = f.saucesOrder.map(function (n) { return [n, f.sauces[n]]; });
     var line = buildWingLine(f.name, f.priceCents, f.flavor, f.halves, f.celery,
-      f.flats, f.dryRub, Object.keys(f.sauces));
+      f.flats, f.dryRub, sauceQtys);
     if (line) addToCart(line.name, line.size, line.priceCents, line.category, line.detail, line.mods);
     closeFlow();
     renderCart();
@@ -1561,6 +1647,15 @@
     var f = state.flow;
     if (!f) return;
     var line = buildPastaLine(f.name, f.priceCents, f.sauce, f.noodle, f.addinsOrder);
+    if (line) addToCart(line.name, line.size, line.priceCents, line.category, line.detail, line.mods);
+    closeFlow();
+    renderCart();
+  }
+
+  function finishSoupFlow() {
+    var f = state.flow;
+    if (!f) return;
+    var line = buildSoupLine(f.name, f.priceCents, f.cheeseOrder, f.veggiesOrder);
     if (line) addToCart(line.name, line.size, line.priceCents, line.category, line.detail, line.mods);
     closeFlow();
     renderCart();
@@ -1627,6 +1722,8 @@
         startSandwichFlow(itemBtn.getAttribute("data-name"), price);
       } else if (cat === "pasta" && MODS) {
         startPastaFlow(itemBtn.getAttribute("data-name"), price);
+      } else if (cat === "soups" && MODS) {
+        startSoupFlow(itemBtn.getAttribute("data-name"), price);
       } else {
         addToCart(itemBtn.getAttribute("data-name"), "", price, cat);
         renderCart();
@@ -1781,6 +1878,7 @@
     buildPizzaLine: buildPizzaLine, buildHalfHalfLine: buildHalfHalfLine,
     buildWingLine: buildWingLine,
     buildSandwichLine: buildSandwichLine, buildPastaLine: buildPastaLine,
+    buildSoupLine: buildSoupLine,
     addToCart: addToCart, addPizza: addPizza,
     changeQty: changeQty, removeLine: removeLine,
     setLineNotes: setLineNotes, clearCart: clearCart,
@@ -1802,10 +1900,12 @@
     openSizePicker: openSizePicker, closeSizePicker: closeSizePicker,
     startPizzaFlow: startPizzaFlow, startWingFlow: startWingFlow,
     startSandwichFlow: startSandwichFlow, startPastaFlow: startPastaFlow,
+    startSoupFlow: startSoupFlow,
     closeFlow: closeFlow, renderFlow: renderFlow,
     flowPick: flowPick, flowBack: flowBack, flowDone: flowDone,
     finishPizzaFlow: finishPizzaFlow, finishWingFlow: finishWingFlow,
     finishSandwichFlow: finishSandwichFlow, finishPastaFlow: finishPastaFlow,
+    finishSoupFlow: finishSoupFlow,
     HALF_HALF_FLAVOR: HALF_HALF_FLAVOR
   };
   if (typeof window !== "undefined") window.POS = api;

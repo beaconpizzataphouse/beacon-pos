@@ -580,6 +580,22 @@ button:disabled { opacity: 0.45; cursor: default; }
 .opt-price { font-size: 16px; font-weight: 700; color: var(--accent); }
 .opt-section { margin: 18px 0 8px; font-size: 19px; font-weight: 800; }
 .opt-section:first-child { margin-top: 0; }
+
+/* sauces on the side: one row per sauce with a − qty + stepper
+   (sauces take multiples, $0.50 each) */
+.sauce-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.sauce-row:last-child { border-bottom: none; }
+.sauce-name { font-size: 19px; font-weight: 700; line-height: 1.25; }
+.sauce-price { margin-left: 6px; font-size: 16px; font-weight: 700; color: var(--accent); }
+.sauce-stepper { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.qty-btn:disabled { opacity: 0.35; }
 .flow-skip {
   width: 100%;
   min-height: 60px;
