@@ -47,11 +47,14 @@ One question per window, big buttons, Back on every step:
 
 1. **Build Your Own pizza:** tap pizza → size picker → coverage
    (Whole / Left half / Right half) → topping picker from the right
-   set for that size + coverage. Toppings toggle on/off, each shows
-   its price. For halves, toppings come first, then a "Specialty
-   half" section with the 13 specialty halves. The line shows the
-   coverage and picks (e.g. `16" BYO — Left: Pepperoni, Mushrooms`
-   or `16" BYO — Left: Hawaiian`).
+   set for that size + coverage. For a half, Done on the first half
+   walks to the other half ("Now the right half"), so both halves
+   get toppings; Done with nothing picked leaves that half cheese
+   only. Back from the second half returns to the first half with
+   its picks kept. Toppings toggle on/off, each shows its price.
+   For halves, toppings come first, then a "Specialty half" section
+   with the 13 specialty halves. The line shows both halves
+   (e.g. `16" BYO — Left: Pepperoni; Right: Hawaiian`).
 2. **Specialty pizzas:** after the size picker, an optional "Add
    extra toppings" step using the whole-pizza set for that size.
    "No extra toppings" skips it; Done with none chosen does the same.
@@ -139,9 +142,11 @@ Seltzers, Cider, NA Beer, Soda & More, Kegs).
    topping flow (Build Your Own asks whole / left / right first).
    Tapping wings opens the flavor flow (flavor → celery → extras).
    Other items add straight to the order.
-2. The order panel (right side) shows lines with quantity +/-, a notes
-   field per line, and Remove. Subtotal, 6% sales tax, and total update
-   live. Money is kept in integer cents to avoid rounding errors.
+2. The order panel (right side) shows lines newest first, so what
+   was just added sits at the top without scrolling. Each line has
+   quantity +/-, a notes field, and Remove. Subtotal, 6% sales tax,
+   and total update live. Money is kept in integer cents to avoid
+   rounding errors.
 3. Pick Dine-in or Pickup, enter a table number or name, tap
    **Send to kitchen**. The order is saved on this iPad and a
    confirmation shows the order number and total.

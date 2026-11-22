@@ -142,6 +142,17 @@
     return { toppings: options.slice(0, cut), specialty: options.slice(cut) };
   }
 
+  function otherSide(side) { return side === "left" ? "right" : "left"; }
+
+  /* The pick state for the topping picker currently on screen. BYO
+     half flows keep one pick set per side so Back keeps each half's
+     toppings; whole pizzas and specialty pizzas use the flow's own
+     picked/pickedOrder. Both shapes have picked + pickedOrder. */
+  function flowPicks(f) {
+    if (f.kind === "pizza" && f.isBYO && f.side) return f.picksBySide[f.side];
+    return f;
+  }
+
   /* ---------------- cart ---------------- */
   function lineKey(name, size, detail, notes) {
     return name + "\u0000" + (size || "") + "\u0000" + (detail || "") + "\u0000" + (notes || "");
@@ -196,6 +207,37 @@
     }
     return { name: pizzaName, size: SIZE_LABELS[sizeKey] || sizeKey,
              priceCents: priceCents, detail: detail, mods: mods, category: "pizza" };
+  }
+
+  /* Build a BYO half-and-half line from both halves' picks.
+     leftPicks / rightPicks: raw Square option names, in tap order.
+     Each side is priced from its own half set. Detail always reads
+     Left first, then Right; a side with no picks reads "cheese
+     only". */
+  function buildHalfHalfLine(pizzaName, sizeKey, leftPicks, rightPicks) {
+    var pizza = pizzaByName(pizzaName);
+    if (!pizza) return null;
+    var price = pizza.sizes[sizeKey];
+    if (price == null) return null;
+    function sideMods(side, picks) {
+      var setKey = toppingSetKey(sizeKey, side);
+      return (picks || []).map(function (n) {
+        return { name: displayName(n), priceCents: modPrice(setKey, n) };
+      });
+    }
+    function sideDetail(ms) {
+      var names = ms.map(function (m) { return m.name; }).join(", ");
+      return names || "cheese only";
+    }
+    var leftMods = sideMods("left", leftPicks);
+    var rightMods = sideMods("right", rightPicks);
+    var mods = leftMods.concat(rightMods);
+    var priceCents = toCents(price);
+    for (var i = 0; i < mods.length; i++) priceCents += mods[i].priceCents;
+    return { name: pizzaName, size: SIZE_LABELS[sizeKey] || sizeKey,
+             priceCents: priceCents,
+             detail: "Left: " + sideDetail(leftMods) + "; Right: " + sideDetail(rightMods),
+             mods: mods, category: "pizza" };
   }
 
   /* Build a wings cart line from a finished modifier flow.
@@ -372,8 +414,12 @@
     }).join("");
   }
 
+  /* Newest line first, so what was just added is at the top without
+     scrolling. Display order only — the cart array itself stays in
+     the order items were added, so totals, merging, and saved
+     orders are unaffected. */
   function cartLinesHTML() {
-    return state.cart.map(function (l) {
+    return state.cart.slice().reverse().map(function (l) {
       var sizePart = l.size ? ' <span class="line-size">' + esc(l.size) + "</span>" : "";
       var detailPart = l.detail ? '<div class="line-detail">' + esc(l.detail) + "</div>" : "";
       return '<div class="cart-line">' +
@@ -508,7 +554,9 @@
 
   /* ---------------- modifier flows ----------------
      One question per window, big buttons, Back on every step.
-     Pizza: size (size picker) -> coverage (BYO only) -> toppings.
+     Pizza: size (size picker) -> coverage (BYO only) -> toppings for
+     the first half -> toppings for the other half (BYO half-and-half
+     only; Done with nothing picked = cheese only on that half).
      Wings: flavor -> half flavors (only for 1/2 & 1/2) -> celery ->
      extras. Single-pick steps advance on tap; multi-pick steps
      have a Done button. Back returns to the previous step, or to
@@ -519,7 +567,11 @@
       kind: "pizza", pizzaName: pizzaName, sizeKey: sizeKey, isBYO: isBYO,
       step: isBYO ? "coverage" : "toppings",
       coverage: isBYO ? null : "whole",
-      picked: {}, pickedOrder: []
+      side: null, halfStep: 1,
+      picked: {}, pickedOrder: [],
+      /* one pick set per side, so Back keeps each half's toppings */
+      picksBySide: { left: { picked: {}, pickedOrder: [] },
+                     right: { picked: {}, pickedOrder: [] } }
     };
     renderFlow();
     var modal = el("flow-modal");
@@ -585,24 +637,34 @@
           "</div>";
         footHTML = footBackHTML("Back");
       } else {
-        var options = modOptions(toppingSetKey(f.sizeKey, f.coverage));
+        var picks = flowPicks(f);
+        var options = modOptions(toppingSetKey(f.sizeKey, f.side || f.coverage));
         if (f.isBYO && f.coverage !== "whole") {
-          s = "Pick toppings for the " + f.coverage + " half";
+          if (f.halfStep === 2) {
+            s = "Now the " + f.side + " half \u2014 pick toppings";
+          } else {
+            s = "Pick toppings for the " + f.side + " half";
+          }
           var split = splitHalfSet(options);
           html = '<h3 class="opt-section">Toppings</h3>' +
-            toppingGridHTML(split.toppings, f.picked) +
+            toppingGridHTML(split.toppings, picks.picked) +
             '<h3 class="opt-section">Specialty half</h3>' +
-            toppingGridHTML(split.specialty, f.picked);
+            toppingGridHTML(split.specialty, picks.picked);
+          var doneLabel = (f.halfStep === 1)
+            ? "Next: " + otherSide(f.side) + " half"
+            : "Add to order";
+          footHTML = footBackHTML("Back") + footDoneHTML(doneLabel, false);
         } else if (f.isBYO) {
           s = "Pick your toppings";
-          html = toppingGridHTML(options, f.picked);
+          html = toppingGridHTML(options, picks.picked);
+          footHTML = footBackHTML("Back") + footDoneHTML("Add to order", false);
         } else {
           s = "Add extra toppings? (optional)";
-          html = toppingGridHTML(options, f.picked) +
+          html = toppingGridHTML(options, picks.picked) +
             '<button type="button" class="flow-skip" data-action="skip-toppings">' +
             "No extra toppings</button>";
+          footHTML = footBackHTML("Back") + footDoneHTML("Add to order", false);
         }
-        footHTML = footBackHTML("Back") + footDoneHTML("Add to order", false);
       }
     } else {
       t = f.name;
@@ -656,14 +718,21 @@
     if (action === "coverage") {
       f.coverage = value;
       f.step = "toppings";
+      if (value === "left" || value === "right") {
+        f.side = value;
+        f.halfStep = 1;
+      } else {
+        f.side = null;
+      }
       renderFlow();
     } else if (action === "topping") {
-      if (f.picked[value]) {
-        delete f.picked[value];
-        f.pickedOrder = f.pickedOrder.filter(function (n) { return n !== value; });
+      var p = flowPicks(f);
+      if (p.picked[value]) {
+        delete p.picked[value];
+        p.pickedOrder = p.pickedOrder.filter(function (n) { return n !== value; });
       } else {
-        f.picked[value] = true;
-        f.pickedOrder.push(value);
+        p.picked[value] = true;
+        p.pickedOrder.push(value);
       }
       renderFlow();
     } else if (action === "skip-toppings") {
@@ -698,7 +767,12 @@
     var f = state.flow;
     if (!f) return;
     if (f.kind === "pizza") {
-      if (f.step === "toppings" && f.isBYO) {
+      if (f.step === "toppings" && f.isBYO && f.halfStep === 2) {
+        /* back to the first half; each half's picks are kept per side */
+        f.side = f.coverage;
+        f.halfStep = 1;
+        renderFlow();
+      } else if (f.step === "toppings" && f.isBYO) {
         f.step = "coverage";
         renderFlow();
       } else {
@@ -719,7 +793,16 @@
   function flowDone() {
     var f = state.flow;
     if (!f) return;
-    if (f.kind === "pizza" && f.step === "toppings") finishPizzaFlow();
+    if (f.kind === "pizza" && f.step === "toppings") {
+      if (f.isBYO && f.coverage !== "whole" && f.halfStep === 1) {
+        /* first half done — offer the other half next */
+        f.side = otherSide(f.side);
+        f.halfStep = 2;
+        renderFlow();
+      } else {
+        finishPizzaFlow();
+      }
+    }
     else if (f.kind === "wings" && f.step === "halves") {
       if (f.halves.length === 2) { f.step = "celery"; renderFlow(); }
     } else if (f.kind === "wings" && f.step === "extras") finishWingFlow();
@@ -728,7 +811,13 @@
   function finishPizzaFlow() {
     var f = state.flow;
     if (!f) return;
-    var line = buildPizzaLine(f.pizzaName, f.sizeKey, f.coverage, f.pickedOrder);
+    var line;
+    if (f.isBYO && f.coverage !== "whole") {
+      line = buildHalfHalfLine(f.pizzaName, f.sizeKey,
+        f.picksBySide.left.pickedOrder, f.picksBySide.right.pickedOrder);
+    } else {
+      line = buildPizzaLine(f.pizzaName, f.sizeKey, f.coverage, f.pickedOrder);
+    }
     if (line) addToCart(line.name, line.size, line.priceCents, line.category, line.detail, line.mods);
     closeFlow();
     renderCart();
@@ -922,7 +1011,8 @@
     categoryById: categoryById, pizzaByName: pizzaByName,
     displayName: displayName, modSet: modSet, modOptions: modOptions,
     modPrice: modPrice, toppingSetKey: toppingSetKey, splitHalfSet: splitHalfSet,
-    buildPizzaLine: buildPizzaLine, buildWingLine: buildWingLine,
+    buildPizzaLine: buildPizzaLine, buildHalfHalfLine: buildHalfHalfLine,
+    buildWingLine: buildWingLine,
     addToCart: addToCart, addPizza: addPizza,
     changeQty: changeQty, removeLine: removeLine,
     setLineNotes: setLineNotes, clearCart: clearCart,

@@ -3,11 +3,13 @@
    modifier lists, read from the Dashboard Nov 22 2026). Do not
    hand-edit prices here; fix them in Square, re-read modifiers.json,
    and re-run generate_modifiers.py.
-   Prices are in dollars, exactly as Square lists them. A null price
-   means Square's price field was blank — the app treats it as $0.00.
+   Prices are in dollars, as Square lists them, except one noted below.
+   A null price means Square's price field was blank — the app treats
+   it as $0.00.
    NOTE: Left Side 10" "Chicken Bacon Ranch" is $310.00 in Square
-   (every other size/side is $2.60-$3.25). Recorded as shown; do NOT
-   "fix" it here — it changes only when Vince confirms the Square fix.
+   (every other size/side is $2.60-$3.25) — almost certainly a typo.
+   Per Vince (Nov 22 2026) Square is left alone and OUR data uses
+   $3.10. Do not "correct" it back to $310.00.
 */
 window.BEACON_MODIFIERS = {
   "source": "Square Dashboard > Items > Modifiers for Beacon Pizza and Tap House, read 2026-11-22 ~00:06 PST by browser (read-only, nothing changed). 27 sets, 562 options. (The browser's report said 28 sets, but the sets it listed number 27; the 562 option count matches exactly.)",

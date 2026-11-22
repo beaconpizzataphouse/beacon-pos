@@ -217,6 +217,10 @@ POS.clearCart();
 POS.addToCart("BLT", "", 1199, "sandwich");
 check("cart HTML shows line + total", POS.cartLinesHTML().indexOf("BLT") !== -1 &&
   POS.cartLinesHTML().indexOf("$11.99") !== -1);
+POS.addToCart("Ranch", "", 50, "side");
+const ch = POS.cartLinesHTML();
+check("newest line renders first in the order panel",
+  ch.indexOf("Ranch") !== -1 && ch.indexOf("Ranch") < ch.indexOf("BLT"));
 let renderThrew = null;
 try {
   POS.renderAll();

@@ -12,8 +12,12 @@ the wing flavor "1/2 &1/2" and the half-flavor spellings get a space /
 apostrophe / capital so they read cleanly on screen. Raw Square names
 are kept as the keys, so lookups still match.
 
-Re-run after modifiers.json changes (e.g. if the $310.00 Chicken
-Bacon Ranch typo on Left Side 10" is fixed in Square).
+Re-run after modifiers.json changes.
+NOTE: our data diverges from Square on ONE price by Vince's decision
+(Nov 22 2026): Left Side 10" "Chicken Bacon Ranch" is $310.00 in Square
+(every other size/side is $2.60-$3.25) — almost certainly a typo, but
+Vince said to leave Square alone and fix it in ours, so modifiers.json
+uses $3.10. Do not "correct" it back to $310.00.
 """
 import json
 import os
@@ -31,11 +35,13 @@ HEADER = """/* Beacon POS — modifier data.
    modifier lists, read from the Dashboard Nov 22 2026). Do not
    hand-edit prices here; fix them in Square, re-read modifiers.json,
    and re-run generate_modifiers.py.
-   Prices are in dollars, exactly as Square lists them. A null price
-   means Square's price field was blank — the app treats it as $0.00.
+   Prices are in dollars, as Square lists them, except one noted below.
+   A null price means Square's price field was blank — the app treats
+   it as $0.00.
    NOTE: Left Side 10" "Chicken Bacon Ranch" is $310.00 in Square
-   (every other size/side is $2.60-$3.25). Recorded as shown; do NOT
-   "fix" it here — it changes only when Vince confirms the Square fix.
+   (every other size/side is $2.60-$3.25) — almost certainly a typo.
+   Per Vince (Nov 22 2026) Square is left alone and OUR data uses
+   $3.10. Do not "correct" it back to $310.00.
 */
 window.BEACON_MODIFIERS = """
 
