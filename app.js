@@ -10,8 +10,9 @@
    prices. Modifier data (toppings, wing flavors) comes from
    modifiers.js, generated from modifiers.json, which was read from
    the Square Dashboard's modifier lists (see generate_modifiers.py).
-   Pizza and wing items walk a step-by-step modifier flow (one
-   question per window); other items add straight to the order.
+   Pizza, wing, sandwich, and pasta items walk a step-by-step
+   modifier flow (one question per window); other items add
+   straight to the order.
 
    Money is handled in integer cents everywhere to avoid float
    rounding. Tax is 6% (Square's Sales Tax rate in the export).
@@ -50,7 +51,7 @@
     orderType: "dine-in",
     tableName: "",
     pendingPizza: null,     // pizza awaiting a size choice
-    flow: null,             // active modifier flow (pizza or wings), see startPizzaFlow/startWingFlow
+    flow: null,             // active modifier flow, see startPizzaFlow/startWingFlow/startSandwichFlow/startPastaFlow
     lastOrder: null
   };
 
@@ -154,8 +155,17 @@
   }
 
   /* ---------------- cart ---------------- */
+  /* Cart-line keys go into data-* attributes in the cart HTML, so
+     the separator must survive an HTML round-trip. \u0000 does NOT:
+     the HTML parser replaces NUL in attribute values with U+FFFD,
+     so getAttribute returned a key that never matched — Remove,
+     qty +/-, and notes silently did nothing in the browser (the
+     node tests never caught it because they call the functions
+     directly, bypassing the DOM). \u001F (unit separator) survives
+     parsing and can never be typed on the iPad keyboard. */
+  var KEY_SEP = "\u001F";
   function lineKey(name, size, detail, notes) {
-    return name + "\u0000" + (size || "") + "\u0000" + (detail || "") + "\u0000" + (notes || "");
+    return name + KEY_SEP + (size || "") + KEY_SEP + (detail || "") + KEY_SEP + (notes || "");
   }
 
   function addToCart(name, size, priceCents, category, detail, mods) {
@@ -285,6 +295,57 @@
              detail: parts.join(" \u00b7 "), mods: mods, category: "wings" };
   }
 
+  /* Build a sandwich cart line from a finished modifier flow.
+     cheeseNames / veggieNames / meatNames: raw Square option names,
+     in tap order, priced from the cheese / veggie_addons / meats
+     sets. Nothing picked on a step = no change on that step; a
+     sandwich with nothing picked anywhere is the plain sandwich.
+     Square's data has no "No ..." removal option and no condiment
+     set at all, so removals and condiments stay in the Notes field. */
+  function buildSandwichLine(name, priceCents, cheeseNames, veggieNames, meatNames) {
+    var mods = [];
+    function addMods(setKey, names) {
+      (names || []).forEach(function (n) {
+        mods.push({ name: displayName(n), priceCents: modPrice(setKey, n) });
+      });
+    }
+    addMods("cheese", cheeseNames);
+    addMods("veggie_addons", veggieNames);
+    addMods("meats", meatNames);
+    var total = priceCents;
+    for (var i = 0; i < mods.length; i++) total += mods[i].priceCents;
+    var detail = mods.length
+      ? "+ " + mods.map(function (m) { return m.name; }).join(", ") : "";
+    return { name: name, size: "", priceCents: total,
+             detail: detail, mods: mods, category: "sandwiches" };
+  }
+
+  /* Build a pasta cart line from a finished modifier flow.
+     sauce / noodle: raw pasta_sauce / pasta_noodle names, or null
+     when the step was skipped (kept as it comes). addinNames: raw
+     pasta_addins names, in tap order. Sauce and noodle are $0
+     choices (except Pink Sauce, +$1.00), so they show in the detail
+     only; add-ins are priced and recorded as mods. */
+  function buildPastaLine(name, priceCents, sauce, noodle, addinNames) {
+    var mods = [];
+    var parts = [];
+    if (sauce) {
+      var saucePrice = modPrice("pasta_sauce", sauce);
+      if (saucePrice > 0) mods.push({ name: displayName(sauce), priceCents: saucePrice });
+      parts.push(displayName(sauce));
+    }
+    if (noodle) parts.push(displayName(noodle));
+    var addins = (addinNames || []).map(function (n) {
+      mods.push({ name: displayName(n), priceCents: modPrice("pasta_addins", n) });
+      return displayName(n);
+    });
+    if (addins.length) parts.push("+ " + addins.join(", "));
+    var total = priceCents;
+    for (var i = 0; i < mods.length; i++) total += mods[i].priceCents;
+    return { name: name, size: "", priceCents: total,
+             detail: parts.join(" \u00b7 "), mods: mods, category: "pasta" };
+  }
+
   function findLine(key) {
     for (var i = 0; i < state.cart.length; i++) {
       if (state.cart[i].key === key) return state.cart[i];
@@ -376,6 +437,15 @@
 
   function todaysOrders() {
     return loadOrders().filter(function (o) { return isToday(o.placedAt); });
+  }
+
+  /* Delete a saved order by number (Orders view). Saved orders are
+     real customer orders, so the UI asks once ("Remove this order?")
+     before calling this. Removing a number that isn't there is a
+     no-op. */
+  function removeOrder(number) {
+    var list = loadOrders().filter(function (o) { return o.number !== number; });
+    saveOrders(list);
   }
 
   /* ---------------- HTML builders (pure, testable) ---------------- */
@@ -471,7 +541,8 @@
         '<div class="order-meta">' + time + " &middot; " +
         (o.type === "dine-in" ? "Dine-in" : "Pickup") + who + "</div>" +
         '<span class="order-status">' + esc(o.status) + " (demo)</span>" +
-        "<ul class='order-items'>" + items + "</ul></div>";
+        "<ul class='order-items'>" + items + "</ul>" +
+        '<button type="button" class="order-remove" data-remove-order="' + o.number + '">Remove order</button></div>';
     }).join("");
   }
 
@@ -573,10 +644,14 @@
      (half-and-half only; Done with nothing picked leaves that half
      plain — cheese only on Build Your Own, the base pizza on a
      specialty). Wings: flavor -> half flavors (only for 1/2 & 1/2)
-     -> celery -> extras. Single-pick steps advance on tap;
-     multi-pick steps have a Done button. Back returns to the
-     previous step, or to the size picker for pizzas / closes the
-     flow for wings. */
+     -> celery -> extras. Sandwich: cheese -> veggies -> meats
+     (each step multi-pick, Done with nothing = no change; "No
+     changes" on the first step adds the sandwich plain). Pasta:
+     sauce -> noodle -> add-ins (sauce and noodle are single-pick
+     with a Skip button; add-ins are multi-pick). Single-pick steps
+     advance on tap; multi-pick steps have a Done button. Back
+     returns to the previous step, or to the size picker for pizzas
+     / closes the flow for wings, sandwiches, and pastas. */
   function startPizzaFlow(pizzaName, sizeKey) {
     var isBYO = pizzaName === BYO_NAME;
     state.flow = {
@@ -600,6 +675,30 @@
       boneIn: name.indexOf("Bone-in") === 0,
       step: "flavor", flavor: null, halves: [], celery: null,
       flats: "none", dryRub: false, sauces: {}
+    };
+    renderFlow();
+    var modal = el("flow-modal");
+    if (modal) modal.hidden = false;
+  }
+
+  function startSandwichFlow(name, priceCents) {
+    state.flow = {
+      kind: "sandwich", name: name, priceCents: priceCents,
+      step: "cheese",
+      cheese: {}, cheeseOrder: [],
+      veggies: {}, veggiesOrder: [],
+      meats: {}, meatsOrder: []
+    };
+    renderFlow();
+    var modal = el("flow-modal");
+    if (modal) modal.hidden = false;
+  }
+
+  function startPastaFlow(name, priceCents) {
+    state.flow = {
+      kind: "pasta", name: name, priceCents: priceCents,
+      step: "sauce", sauce: null, noodle: null,
+      addins: {}, addinsOrder: []
     };
     renderFlow();
     var modal = el("flow-modal");
@@ -692,7 +791,7 @@
           footHTML = footBackHTML("Back") + footDoneHTML("Add to order", false);
         }
       }
-    } else {
+    } else if (f.kind === "wings") {
       t = f.name;
       if (f.step === "flavor") {
         s = "Pick a flavor";
@@ -731,11 +830,71 @@
           }).join("") + "</div>";
         footHTML = footBackHTML("Back") + footDoneHTML("Add to order", false);
       }
+    } else if (f.kind === "sandwich") {
+      t = f.name;
+      if (f.step === "cheese") {
+        s = "Add or change cheese? (optional)";
+        html = '<div class="flow-grid">' + modOptions("cheese").map(function (o) {
+          return optBtnHTML("cheese", o.name, o.display, o.priceCents, !!f.cheese[o.name]);
+        }).join("") + "</div>" +
+          '<button type="button" class="flow-skip" data-action="skip-all">' +
+          "No changes — add it as it comes</button>";
+        footHTML = footBackHTML("Back") + footDoneHTML("Next", false);
+      } else if (f.step === "veggies") {
+        s = "Add veggies? (optional)";
+        html = '<div class="flow-grid">' + modOptions("veggie_addons").map(function (o) {
+          return optBtnHTML("veggie", o.name, o.display, o.priceCents, !!f.veggies[o.name]);
+        }).join("") + "</div>";
+        footHTML = footBackHTML("Back") + footDoneHTML("Next", false);
+      } else {
+        s = "Add meats? (optional)";
+        html = '<div class="flow-grid">' + modOptions("meats").map(function (o) {
+          return optBtnHTML("meat", o.name, o.display, o.priceCents, !!f.meats[o.name]);
+        }).join("") + "</div>";
+        footHTML = footBackHTML("Back") + footDoneHTML("Add to order", false);
+      }
+    } else if (f.kind === "pasta") {
+      t = f.name;
+      if (f.step === "sauce") {
+        s = "Pick a sauce";
+        html = '<div class="flow-grid">' + modOptions("pasta_sauce").map(function (o) {
+          return optBtnHTML("sauce-pasta", o.name, o.display, o.priceCents, f.sauce === o.name);
+        }).join("") + "</div>" +
+          '<button type="button" class="flow-skip" data-action="skip-all">' +
+          "No changes — add it as it comes</button>";
+        footHTML = footBackHTML("Back") +
+          '<button type="button" class="send-btn flow-done" data-action="skip">Skip</button>';
+      } else if (f.step === "noodle") {
+        s = "Pick a noodle";
+        html = '<div class="flow-grid">' + modOptions("pasta_noodle").map(function (o) {
+          return optBtnHTML("noodle", o.name, o.display, o.priceCents, f.noodle === o.name);
+        }).join("") + "</div>";
+        footHTML = footBackHTML("Back") +
+          '<button type="button" class="send-btn flow-done" data-action="skip">Skip</button>';
+      } else {
+        s = "Add-ins? (optional)";
+        html = '<div class="flow-grid">' + modOptions("pasta_addins").map(function (o) {
+          return optBtnHTML("addin", o.name, o.display, o.priceCents, !!f.addins[o.name]);
+        }).join("") + "</div>";
+        footHTML = footBackHTML("Back") + footDoneHTML("Add to order", false);
+      }
     }
     if (title) title.textContent = t;
     if (sub) sub.textContent = s;
     if (opts) opts.innerHTML = html;
     if (foot) foot.innerHTML = footHTML;
+  }
+
+  /* Toggle one option in a multi-pick step's pick set + tap order. */
+  function togglePick(picked, pickedOrder, value) {
+    if (picked[value]) {
+      delete picked[value];
+      var i = pickedOrder.indexOf(value);
+      if (i !== -1) pickedOrder.splice(i, 1);
+    } else {
+      picked[value] = true;
+      pickedOrder.push(value);
+    }
   }
 
   function flowPick(action, value) {
@@ -787,6 +946,32 @@
       if (f.sauces[value]) delete f.sauces[value];
       else f.sauces[value] = true;
       renderFlow();
+    } else if (action === "cheese") {
+      togglePick(f.cheese, f.cheeseOrder, value);
+      renderFlow();
+    } else if (action === "veggie") {
+      togglePick(f.veggies, f.veggiesOrder, value);
+      renderFlow();
+    } else if (action === "meat") {
+      togglePick(f.meats, f.meatsOrder, value);
+      renderFlow();
+    } else if (action === "sauce-pasta") {
+      f.sauce = value;
+      f.step = "noodle";
+      renderFlow();
+    } else if (action === "noodle") {
+      f.noodle = value;
+      f.step = "addins";
+      renderFlow();
+    } else if (action === "addin") {
+      togglePick(f.addins, f.addinsOrder, value);
+      renderFlow();
+    } else if (action === "skip") {
+      if (f.kind === "pasta" && f.step === "sauce") { f.step = "noodle"; renderFlow(); }
+      else if (f.kind === "pasta" && f.step === "noodle") { f.step = "addins"; renderFlow(); }
+    } else if (action === "skip-all") {
+      if (f.kind === "sandwich") finishSandwichFlow();
+      else if (f.kind === "pasta") finishPastaFlow();
     }
   }
 
@@ -807,13 +992,21 @@
         closeFlow();
         openSizePicker(name);
       }
-    } else {
+    } else if (f.kind === "wings") {
       if (f.step === "flavor") closeFlow();
       else if (f.step === "halves") { f.step = "flavor"; renderFlow(); }
       else if (f.step === "celery") {
         f.step = (f.flavor === HALF_HALF_FLAVOR) ? "halves" : "flavor";
         renderFlow();
       } else { f.step = "celery"; renderFlow(); }
+    } else if (f.kind === "sandwich") {
+      if (f.step === "cheese") closeFlow();
+      else if (f.step === "veggies") { f.step = "cheese"; renderFlow(); }
+      else { f.step = "veggies"; renderFlow(); }
+    } else if (f.kind === "pasta") {
+      if (f.step === "sauce") closeFlow();
+      else if (f.step === "noodle") { f.step = "sauce"; renderFlow(); }
+      else { f.step = "noodle"; renderFlow(); }
     }
   }
 
@@ -833,6 +1026,10 @@
     else if (f.kind === "wings" && f.step === "halves") {
       if (f.halves.length === 2) { f.step = "celery"; renderFlow(); }
     } else if (f.kind === "wings" && f.step === "extras") finishWingFlow();
+    else if (f.kind === "sandwich" && f.step === "cheese") { f.step = "veggies"; renderFlow(); }
+    else if (f.kind === "sandwich" && f.step === "veggies") { f.step = "meats"; renderFlow(); }
+    else if (f.kind === "sandwich" && f.step === "meats") finishSandwichFlow();
+    else if (f.kind === "pasta" && f.step === "addins") finishPastaFlow();
   }
 
   function finishPizzaFlow() {
@@ -855,6 +1052,25 @@
     if (!f) return;
     var line = buildWingLine(f.name, f.priceCents, f.flavor, f.halves, f.celery,
       f.flats, f.dryRub, Object.keys(f.sauces));
+    if (line) addToCart(line.name, line.size, line.priceCents, line.category, line.detail, line.mods);
+    closeFlow();
+    renderCart();
+  }
+
+  function finishSandwichFlow() {
+    var f = state.flow;
+    if (!f) return;
+    var line = buildSandwichLine(f.name, f.priceCents,
+      f.cheeseOrder, f.veggiesOrder, f.meatsOrder);
+    if (line) addToCart(line.name, line.size, line.priceCents, line.category, line.detail, line.mods);
+    closeFlow();
+    renderCart();
+  }
+
+  function finishPastaFlow() {
+    var f = state.flow;
+    if (!f) return;
+    var line = buildPastaLine(f.name, f.priceCents, f.sauce, f.noodle, f.addinsOrder);
     if (line) addToCart(line.name, line.size, line.priceCents, line.category, line.detail, line.mods);
     closeFlow();
     renderCart();
@@ -917,6 +1133,10 @@
       var price = toCents(parseFloat(itemBtn.getAttribute("data-price")));
       if (cat === "wings" && MODS) {
         startWingFlow(itemBtn.getAttribute("data-name"), price);
+      } else if (cat === "sandwiches" && MODS) {
+        startSandwichFlow(itemBtn.getAttribute("data-name"), price);
+      } else if (cat === "pasta" && MODS) {
+        startPastaFlow(itemBtn.getAttribute("data-name"), price);
       } else {
         addToCart(itemBtn.getAttribute("data-name"), "", price, cat);
         renderCart();
@@ -947,6 +1167,23 @@
     if (input && input.getAttribute && input.getAttribute("data-notes") !== null) {
       setLineNotes(input.getAttribute("data-notes"), input.value);
     }
+  }
+
+  /* Saved orders are real customer orders, so removing one asks
+     once ("Remove this order?") before deleting. */
+  function onOrdersClick(e) {
+    var rmBtn = closestBtn(e.target, "data-remove-order");
+    if (!rmBtn) return;
+    var number = parseInt(rmBtn.getAttribute("data-remove-order"), 10);
+    if (isNaN(number)) return;
+    var ok = (typeof window !== "undefined" && typeof window.confirm === "function")
+      ? window.confirm("Remove this order?")
+      : true;
+    if (!ok) return;
+    removeOrder(number);
+    var list = el("orders-list");
+    if (list) list.innerHTML = ordersHTML();
+    renderOrdersCount();
   }
 
   function onTypeClick(e) {
@@ -990,7 +1227,7 @@
         back = el("back-btn"), sizeOpts = el("size-options"),
         sizeCancel = el("size-cancel"), confirmDone = el("confirm-done"),
         sizeModal = el("size-modal"), confirmModal = el("confirm-modal"),
-        flowModal = el("flow-modal");
+        flowModal = el("flow-modal"), ordersList = el("orders-list");
 
     if (tabs) tabs.addEventListener("click", onTabsClick);
     if (grid) grid.addEventListener("click", onGridClick);
@@ -999,6 +1236,7 @@
       cart.addEventListener("click", onCartClick);
       cart.addEventListener("input", onCartInput);
     }
+    if (ordersList) ordersList.addEventListener("click", onOrdersClick);
     if (typeWrap) typeWrap.addEventListener("click", onTypeClick);
     if (tableInput) {
       tableInput.addEventListener("input", function () { state.tableName = tableInput.value; });
@@ -1040,20 +1278,24 @@
     modPrice: modPrice, toppingSetKey: toppingSetKey, splitHalfSet: splitHalfSet,
     buildPizzaLine: buildPizzaLine, buildHalfHalfLine: buildHalfHalfLine,
     buildWingLine: buildWingLine,
+    buildSandwichLine: buildSandwichLine, buildPastaLine: buildPastaLine,
     addToCart: addToCart, addPizza: addPizza,
     changeQty: changeQty, removeLine: removeLine,
     setLineNotes: setLineNotes, clearCart: clearCart,
     cartTotals: cartTotals, sendOrder: sendOrder,
     loadOrders: loadOrders, todaysOrders: todaysOrders,
+    removeOrder: removeOrder,
     nextOrderNumber: nextOrderNumber,
     tabsHTML: tabsHTML, gridHTML: gridHTML, drinkJumpHTML: drinkJumpHTML,
     cartLinesHTML: cartLinesHTML, ordersHTML: ordersHTML,
     renderAll: renderAll, showView: showView,
     openSizePicker: openSizePicker, closeSizePicker: closeSizePicker,
     startPizzaFlow: startPizzaFlow, startWingFlow: startWingFlow,
+    startSandwichFlow: startSandwichFlow, startPastaFlow: startPastaFlow,
     closeFlow: closeFlow, renderFlow: renderFlow,
     flowPick: flowPick, flowBack: flowBack, flowDone: flowDone,
     finishPizzaFlow: finishPizzaFlow, finishWingFlow: finishWingFlow,
+    finishSandwichFlow: finishSandwichFlow, finishPastaFlow: finishPastaFlow,
     HALF_HALF_FLAVOR: HALF_HALF_FLAVOR
   };
   if (typeof window !== "undefined") window.POS = api;

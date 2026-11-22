@@ -151,6 +151,43 @@ POS.addToCart("Ranch", "", 50, "side");
 check("noted line does not merge with plain add",
   POS.state.cart.filter(function (l) { return l.name === "Ranch"; }).length === 2);
 
+/* Line keys go into data-* attributes in the cart HTML. NUL (\u0000)
+   separators used to be mangled by the HTML parser (replaced with
+   U+FFFD), so Remove, qty +/-, and notes silently did nothing in the
+   browser. Keys must contain no NUL, and the values in the rendered
+   HTML must match the keys exactly. */
+const keyLine = POS.state.cart.find(function (l) { return l.name === "Ranch"; });
+check("line key has no NUL separator", keyLine.key.indexOf("\u0000") === -1,
+  JSON.stringify(keyLine.key));
+check("cart HTML data-remove values match line keys", (function () {
+  const h = POS.cartLinesHTML();
+  const vals = [];
+  const re = /data-remove="([^"]*)"/g;
+  let m;
+  while ((m = re.exec(h)) !== null) vals.push(m[1]);
+  return vals.length === POS.state.cart.length &&
+    vals.every(function (v) { return POS.state.cart.some(function (l) { return l.key === v; }); });
+})());
+check("cart HTML data-qty keys match line keys", (function () {
+  const h = POS.cartLinesHTML();
+  const vals = [];
+  const re = /data-key="([^"]*)"/g;
+  let m;
+  while ((m = re.exec(h)) !== null) vals.push(m[1]);
+  return vals.length === POS.state.cart.length * 2 &&
+    vals.every(function (v) { return POS.state.cart.some(function (l) { return l.key === v; }); });
+})());
+check("removeLine with the key from the cart HTML removes the line", (function () {
+  POS.clearCart();
+  POS.addToCart("BLT", "", 1199, "sandwiches");
+  POS.addToCart("Ranch", "", 50, "side");
+  const h = POS.cartLinesHTML();
+  const m = h.match(/data-remove="([^"]*)"/);
+  if (!m) return false;
+  POS.removeLine(m[1]);
+  return POS.state.cart.length === 1 && POS.state.cart[0].name === "BLT";
+})());
+
 /* ---------- totals / tax ---------- */
 console.log("totals:");
 POS.clearCart();
@@ -234,6 +271,24 @@ check("render/showView/size picker run without throwing", renderThrew === null,
 check("render filled the grid element", byId["grid"].innerHTML.indexOf("BLT") !== -1 ||
   byId["grid"].innerHTML.length > 100);
 check("orders count element updated", byId["orders-count"].textContent === "3");
+
+/* ---------- remove saved order ---------- */
+console.log("remove saved order:");
+check("orders HTML has a Remove button per order",
+  (POS.ordersHTML().match(/data-remove-order/g) || []).length === 3);
+POS.removeOrder(101);
+check("removeOrder drops the order from storage",
+  POS.loadOrders().length === 2 && POS.loadOrders().every(function (o) { return o.number !== 101; }));
+check("removed order no longer in today's list",
+  POS.todaysOrders().length === 2 && POS.todaysOrders().every(function (o) { return o.number !== 101; }));
+check("orders HTML no longer shows the removed order",
+  POS.ordersHTML().indexOf("#101") === -1 && POS.ordersHTML().indexOf("#102") !== -1);
+POS.removeOrder(999);
+check("removing a missing order number is a no-op", POS.loadOrders().length === 2);
+check("order count element updates after removal", (function () {
+  POS.showView("orders");
+  return byId["orders-count"].textContent === "2";
+})());
 
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

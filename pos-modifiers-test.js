@@ -3,9 +3,10 @@
 // DOM stubs (same pattern as pos-test.js).
 // Checks: modifier data, display-name fixes, BYO whole/half topping
 // math, specialty extra toppings (whole + half-and-half), wing
-// flavor + 1/2&1/2 flow, All Flats +$3, sauce-on-the-side math, flow
-// navigation/back, cart merge rules with modifiers, and that orders
-// persist the detail.
+// flavor + 1/2&1/2 flow, All Flats +$3, sauce-on-the-side math,
+// sandwich cheese/veggie/meat flow, pasta sauce/noodle/add-in flow,
+// flow navigation/back, cart merge rules with modifiers, and that
+// orders persist the detail.
 //
 // Run from this folder: node pos-modifiers-test.js
 "use strict";
@@ -87,6 +88,27 @@ check("half sets have 42 each", ["left_10", "left_12", "left_16", "left_18",
   .every(function (k) { return MODS.sets[k].length === 42; }));
 check("9 wing flavors", MODS.sets.wing_flavors.length === 9);
 check("wing flavors all free", MODS.sets.wing_flavors.every(function (o) { return o[1] === 0; }));
+check("cheese set: 7 at $0.50", MODS.sets.cheese.length === 7 &&
+  MODS.sets.cheese.every(function (o) { return o[1] === 0.5; }));
+check("meats set: 7 (Bacon $2.50, Prime Rib $9.00)", MODS.sets.meats.length === 7 &&
+  MODS.sets.meats.find(function (o) { return o[0] === "Bacon"; })[1] === 2.5 &&
+  MODS.sets.meats.find(function (o) { return o[0] === "Prime Rib"; })[1] === 9);
+check("veggie add-ons: 13 at $0.60, incl. Lettuce + Tomatoes",
+  MODS.sets.veggie_addons.length === 13 &&
+  MODS.sets.veggie_addons.every(function (o) { return o[1] === 0.6; }) &&
+  MODS.sets.veggie_addons.some(function (o) { return o[0] === "Lettuce"; }) &&
+  MODS.sets.veggie_addons.some(function (o) { return o[0] === "Tomatoes"; }));
+check("pasta sauce: Red/Alfredo free, Pink +$1", MODS.sets.pasta_sauce.length === 3 &&
+  MODS.sets.pasta_sauce.find(function (o) { return o[0] === "Pink Sauce"; })[1] === 1);
+check("pasta noodle: 3, all free", MODS.sets.pasta_noodle.length === 3 &&
+  MODS.sets.pasta_noodle.every(function (o) { return o[1] === 0; }));
+check("pasta add-ins: 17", MODS.sets.pasta_addins.length === 17);
+/* Square has no condiment set and no "No ..." removal option — the
+   flows add only; removals and condiments stay in the Notes field. */
+check("no condiment set in Square data",
+  Object.keys(MODS.sets).every(function (k) { return k.indexOf("condiment") === -1; }));
+check("veggie add-ons have no No-... removal options",
+  MODS.sets.veggie_addons.every(function (o) { return o[0].indexOf("No ") !== 0; }));
 check("display fix: Green Oniond", POS.displayName("Green Oniond") === "Green Onions");
 check("display fix: Classic Pepperonii", POS.displayName("Classic Pepperonii") === "Classic Pepperoni");
 check("display fix: 1/2 &1/2", POS.displayName("1/2 &1/2") === "1/2 & 1/2");
@@ -209,6 +231,39 @@ check("flats + dry rub + sauce = $22.14", line.priceCents === 2214, "got " + lin
 check("dry rub in detail", line.detail.indexOf("Spicy dry rub") !== -1, line.detail);
 line = POS.buildWingLine("Boneless Wings \u2014 10 pc", 1399, "Carolina", [], "Celery", "none", false, []);
 check("boneless 10 carolina = $13.99", line.priceCents === 1399);
+
+/* ---------- sandwich math ---------- */
+console.log("sandwich math:");
+line = POS.buildSandwichLine("BLT", 1199, ["Swiss"], ["Lettuce", "Tomatoes"], ["Bacon"]);
+check("BLT + swiss + lettuce + tomatoes + bacon = $16.19", line.priceCents === 1619, "got " + line.priceCents);
+check("sandwich detail", line.detail === "+ Swiss, Lettuce, Tomatoes, Bacon", line.detail);
+check("sandwich mods priced per set", line.mods.length === 4 &&
+  line.mods[0].priceCents === 50 && line.mods[1].priceCents === 60 &&
+  line.mods[2].priceCents === 60 && line.mods[3].priceCents === 250);
+line = POS.buildSandwichLine("Beacon Prime Dip", 1699, [], [], []);
+check("plain sandwich = base price, no detail", line.priceCents === 1699 && line.detail === "");
+line = POS.buildSandwichLine("Build Your Own Sandwich", 1099, ["Pepper Jack", "Cheddar"], [], ["Prime Rib"]);
+check("BYO sandwich + 2 cheeses + prime rib = $20.99", line.priceCents === 2099, "got " + line.priceCents);
+check("BYO sandwich detail", line.detail === "+ Pepper Jack, Cheddar, Prime Rib", line.detail);
+line = POS.buildSandwichLine("BLT", 1199, [], ["Jalapenos"], []);
+check("sandwich jalapenos display fixed", line.detail === "+ Jalapeños", line.detail);
+
+/* ---------- pasta math ---------- */
+console.log("pasta math:");
+line = POS.buildPastaLine("Build Your Own Pasta", 1299, "Pink Sauce", "Gluten Free", ["Chicken", "Broccoli"]);
+check("BYO pasta pink + GF + chicken + broccoli = $16.09", line.priceCents === 1609, "got " + line.priceCents);
+check("pasta detail", line.detail === "Pink Sauce \u00b7 Gluten Free \u00b7 + Chicken, Broccoli", line.detail);
+check("pasta mods: pink sauce + add-ins only (noodle is $0)",
+  line.mods.length === 3 && line.mods[0].priceCents === 100 &&
+  line.mods[1].priceCents === 150 && line.mods[2].priceCents === 60);
+line = POS.buildPastaLine("Spaghetti", 1499, "Alfredo", "Spaghetti", []);
+check("spaghetti alfredo = base price, no mods", line.priceCents === 1499 && line.mods.length === 0);
+check("free sauce + noodle still show in detail", line.detail === "Alfredo \u00b7 Spaghetti", line.detail);
+line = POS.buildPastaLine("Bernie Pasta", 1899, null, null, []);
+check("plain pasta = base price, no detail", line.priceCents === 1899 && line.detail === "");
+line = POS.buildPastaLine("Spaghetti & Meatballs", 1699, null, null, ["Mushrooms", "Anchovies"]);
+check("add-ins only = $21.99", line.priceCents === 2199, "got " + line.priceCents);
+check("add-ins-only detail", line.detail === "+ Mushrooms, Anchovies", line.detail);
 
 /* ---------- flow state machine: wings ---------- */
 console.log("wing flow:");
@@ -502,6 +557,158 @@ halfHalfHawaiian18();
 check("identical specialty half-and-half lines merge to qty 2",
   POS.state.cart.length === 1 && POS.state.cart[0].qty === 2);
 
+/* ---------- flow state machine: sandwich ---------- */
+console.log("sandwich flow:");
+POS.clearCart();
+POS.startSandwichFlow("BLT", 1199);
+check("sandwich flow starts at cheese", POS.state.flow.step === "cheese");
+check("cheese step offers No changes shortcut",
+  byId["flow-options"].innerHTML.indexOf("No changes") !== -1);
+POS.flowPick("cheese", "Swiss");
+POS.flowDone();
+check("cheese Done advances to veggies", POS.state.flow.step === "veggies");
+check("veggies step shows Lettuce + Tomatoes",
+  byId["flow-options"].innerHTML.indexOf("Lettuce") !== -1 &&
+  byId["flow-options"].innerHTML.indexOf("Tomatoes") !== -1);
+POS.flowPick("veggie", "Lettuce");
+POS.flowPick("veggie", "Tomatoes");
+POS.flowBack();
+check("back from veggies returns to cheese", POS.state.flow.step === "cheese");
+check("cheese pick kept after Back",
+  POS.state.flow.cheeseOrder.join(",") === "Swiss" &&
+  byId["flow-options"].innerHTML.indexOf('class="opt-btn selected" data-action="cheese" data-value="Swiss"') !== -1);
+POS.flowDone(); // forward to veggies again
+check("veggie picks kept after Back + Next",
+  POS.state.flow.veggiesOrder.join(",") === "Lettuce,Tomatoes");
+POS.flowDone(); // onto meats
+check("veggies Done advances to meats", POS.state.flow.step === "meats");
+POS.flowPick("meat", "Bacon");
+POS.flowDone();
+check("sandwich flow adds 1 line", POS.state.cart.length === 1);
+check("sandwich line $16.19", POS.state.cart[0].priceCents === 1619,
+  "got " + (POS.state.cart[0] && POS.state.cart[0].priceCents));
+check("sandwich line detail", POS.state.cart[0].detail === "+ Swiss, Lettuce, Tomatoes, Bacon",
+  POS.state.cart[0].detail);
+check("flow closed after sandwich done", POS.state.flow === null);
+
+/* skip-all adds the plain sandwich at once */
+POS.startSandwichFlow("Beacon Club", 1399);
+POS.flowPick("skip-all");
+check("skip-all adds plain sandwich", POS.state.cart.length === 2 &&
+  POS.state.cart[1].priceCents === 1399 && POS.state.cart[1].detail === "");
+
+/* Done with nothing on every step = plain sandwich */
+POS.startSandwichFlow("Italian Sub", 1399);
+POS.flowDone();
+POS.flowDone();
+POS.flowDone();
+check("all-skipped sandwich is plain", POS.state.cart.length === 3 &&
+  POS.state.cart[2].priceCents === 1399 && POS.state.cart[2].detail === "");
+
+/* toggle off removes the pick */
+POS.startSandwichFlow("BLT", 1199);
+POS.flowPick("cheese", "Swiss");
+POS.flowPick("cheese", "Swiss");
+POS.flowDone();
+POS.flowDone();
+POS.flowDone();
+check("toggled-off cheese is not charged", POS.state.cart[3].priceCents === 1199 &&
+  POS.state.cart[3].detail === "");
+
+/* Back from cheese cancels the flow */
+POS.startSandwichFlow("BLT", 1199);
+POS.flowBack();
+check("back from cheese cancels the flow", POS.state.flow === null && POS.state.cart.length === 4);
+
+/* identical sandwich lines merge */
+POS.clearCart();
+function swissBLT() {
+  POS.startSandwichFlow("BLT", 1199);
+  POS.flowPick("cheese", "Swiss");
+  POS.flowDone();
+  POS.flowDone();
+  POS.flowDone();
+}
+swissBLT();
+swissBLT();
+check("identical sandwich lines merge to qty 2",
+  POS.state.cart.length === 1 && POS.state.cart[0].qty === 2);
+POS.startSandwichFlow("BLT", 1199);
+POS.flowPick("cheese", "Cheddar");
+POS.flowDone();
+POS.flowDone();
+POS.flowDone();
+check("different cheese is a separate line", POS.state.cart.length === 2);
+
+/* ---------- flow state machine: pasta ---------- */
+console.log("pasta flow:");
+POS.clearCart();
+POS.startPastaFlow("Build Your Own Pasta", 1299);
+check("pasta flow starts at sauce", POS.state.flow.step === "sauce");
+check("sauce step offers No changes shortcut",
+  byId["flow-options"].innerHTML.indexOf("No changes") !== -1);
+check("sauce step has a Skip button",
+  byId["flow-foot"].innerHTML.indexOf("Skip") !== -1);
+POS.flowPick("sauce-pasta", "Pink Sauce");
+check("sauce pick advances to noodle", POS.state.flow.step === "noodle");
+POS.flowBack();
+check("back from noodle returns to sauce", POS.state.flow.step === "sauce");
+check("sauce pick kept after Back", POS.state.flow.sauce === "Pink Sauce");
+POS.flowPick("sauce-pasta", "Pink Sauce");
+check("re-picking sauce advances to noodle", POS.state.flow.step === "noodle");
+POS.flowPick("noodle", "Gluten Free");
+check("noodle pick advances to add-ins", POS.state.flow.step === "addins");
+check("add-ins step shows Chicken + Broccoli",
+  byId["flow-options"].innerHTML.indexOf("Chicken") !== -1 &&
+  byId["flow-options"].innerHTML.indexOf("Broccoli") !== -1);
+POS.flowPick("addin", "Chicken");
+POS.flowPick("addin", "Broccoli");
+POS.flowDone();
+check("pasta flow adds 1 line", POS.state.cart.length === 1);
+check("pasta line $16.09", POS.state.cart[0].priceCents === 1609,
+  "got " + (POS.state.cart[0] && POS.state.cart[0].priceCents));
+check("pasta line detail",
+  POS.state.cart[0].detail === "Pink Sauce \u00b7 Gluten Free \u00b7 + Chicken, Broccoli",
+  POS.state.cart[0].detail);
+check("flow closed after pasta done", POS.state.flow === null);
+
+/* Skip sauce + noodle, add-ins only */
+POS.startPastaFlow("Spaghetti & Meatballs", 1699);
+POS.flowPick("skip");
+check("Skip on sauce advances to noodle", POS.state.flow.step === "noodle");
+POS.flowPick("skip");
+check("Skip on noodle advances to add-ins", POS.state.flow.step === "addins");
+POS.flowPick("addin", "Mushrooms");
+POS.flowDone();
+check("add-ins-only pasta line $17.49", POS.state.cart[1].priceCents === 1749,
+  "got " + (POS.state.cart[1] && POS.state.cart[1].priceCents));
+check("add-ins-only line detail", POS.state.cart[1].detail === "+ Mushrooms",
+  POS.state.cart[1].detail);
+
+/* skip-all adds the plain pasta at once */
+POS.startPastaFlow("Bernie Pasta", 1899);
+POS.flowPick("skip-all");
+check("skip-all adds plain pasta", POS.state.cart.length === 3 &&
+  POS.state.cart[2].priceCents === 1899 && POS.state.cart[2].detail === "");
+
+/* Back from sauce cancels the flow */
+POS.startPastaFlow("Spaghetti", 1499);
+POS.flowBack();
+check("back from sauce cancels the flow", POS.state.flow === null && POS.state.cart.length === 3);
+
+/* identical pasta lines merge */
+POS.clearCart();
+function alfredoSpaghetti() {
+  POS.startPastaFlow("Spaghetti", 1499);
+  POS.flowPick("sauce-pasta", "Alfredo");
+  POS.flowPick("skip");
+  POS.flowDone();
+}
+alfredoSpaghetti();
+alfredoSpaghetti();
+check("identical pasta lines merge to qty 2",
+  POS.state.cart.length === 1 && POS.state.cart[0].qty === 2);
+
 /* ---------- cart merge + totals + orders ---------- */
 console.log("cart merge, totals, orders:");
 POS.clearCart();
@@ -544,6 +751,14 @@ try {
   POS.startWingFlow("Bone-in Wings", 1899);
   POS.flowPick("flavor", "BBQ");
   POS.flowPick("celery", "Celery");
+  POS.renderFlow();
+  POS.startSandwichFlow("BLT", 1199);
+  POS.flowPick("cheese", "Swiss");
+  POS.flowDone();
+  POS.renderFlow();
+  POS.startPastaFlow("Build Your Own Pasta", 1299);
+  POS.flowPick("sauce-pasta", "Pink Sauce");
+  POS.flowPick("noodle", "Spaghetti");
   POS.renderFlow();
   POS.closeFlow();
   POS.renderAll();

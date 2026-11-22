@@ -21,8 +21,8 @@ order only. There is no payment flow here, by design.
 | `modifiers.json` | Modifier lists read from the Square Dashboard (27 sets, 562 options with prices) |
 | `modifiers.js` | Modifier data — **generated, do not hand-edit** (see below) |
 | `generate_modifiers.py` | Builds `modifiers.js` from `modifiers.json` |
-| `pos-test.js` | Regression harness (59 checks): menu, cart, tax, orders — run with `node pos-test.js` |
-| `pos-modifiers-test.js` | Modifier-flow harness (149 checks): topping/wing math, flows, merge rules — run with `node pos-modifiers-test.js` |
+| `pos-test.js` | Regression harness (69 checks): menu, cart, tax, orders — run with `node pos-test.js` |
+| `pos-modifiers-test.js` | Modifier-flow harness (210 checks): topping/wing/sandwich/pasta math, flows, merge rules — run with `node pos-modifiers-test.js` |
 
 ## Modifier source
 
@@ -43,7 +43,7 @@ ours, so `modifiers.json` / `modifiers.js` use **$3.10**; Square itself
 still shows $310.00 and has NOT been changed. Do not "correct" our
 $3.10 back to $310.00.
 
-## Modifier flows (pizza + wings)
+## Modifier flows (pizza + wings + sandwiches + pasta)
 
 One question per window, big buttons, Back on every step:
 
@@ -75,21 +75,39 @@ One question per window, big buttons, Back on every step:
    (bone-in only), spicy dry rub, extra sauces on the side ($0.15
    each). The line shows flavor + choices
    (e.g. `Buffalo · Celery · All Flats · + BBQ on the side`).
+4. **Sandwiches:** tap a sandwich → cheese picker (7 cheeses,
+   $0.50 each) → veggie add-ons (13, $0.60 each — lettuce,
+   tomatoes, pickles, ...) → meats (7, e.g. Bacon $2.50, Prime
+   Rib $9.00). Each step is multi-pick with a Done button; Done
+   with nothing picked means no change on that step, and "No
+   changes" on the first step adds the sandwich plain. The line
+   shows the additions (e.g. `+ Swiss, Lettuce, Tomatoes, Bacon`).
+   Square's data has **no condiment set and no "No ..." removal
+   option**, so condiments and removals (e.g. no tomato) stay in
+   the line's Notes field — nothing was invented for them.
+5. **Pastas:** tap a pasta → sauce (Red / Alfredo free, Pink
+   Sauce +$1.00) → noodle (Angel Hair / Spaghetti / Gluten Free,
+   all free) → add-ins (17, e.g. Chicken $1.50, Anchovies $4.50).
+   Sauce and noodle are single-pick with a Skip button (skipped
+   means kept as it comes); add-ins are multi-pick. "No changes"
+   on the first step adds the pasta plain. The line shows the
+   choices (e.g. `Pink Sauce · Gluten Free · + Chicken, Broccoli`).
 
 Modifier prices flow into the line total, subtotal, 6% tax, and
 total (integer cents throughout). Lines with different modifiers
 stay separate; identical lines merge. The notes field still works
-on every line. If `modifiers.js` fails to load, pizzas and wings
-fall back to the old plain add (no flow) so ordering never breaks.
+on every line. If `modifiers.js` fails to load, pizzas, wings,
+sandwiches, and pastas fall back to the old plain add (no flow)
+so ordering never breaks.
 
 ## Next steps (not built yet)
 
-- **Pasta modifier flows:** noodle (Angel Hair / Spaghetti / Gluten
-  Free), sauce (Red / Alfredo / Pink +$1), add-ins, extra bread.
-- **Sandwich modifier flows:** cheese, meats, veggie add-ons, pickle,
-  condiments, soda upgrade.
-- The sets for both are already in `modifiers.js` — only the flow
-  steps need building, following the pizza/wing pattern.
+- **Pasta/sandwich extras Square doesn't price:** the sets have no
+  extra-bread or soda-upgrade option, so those stay as notes.
+- **Condiments:** no condiment set exists in Square's modifier
+  data. If Vince wants mayo/mustard/etc. as tappable options,
+  the set has to be created in Square first, then read into
+  `modifiers.json` like the others — do not invent prices.
 
 ## Menu source
 
@@ -144,6 +162,12 @@ Seltzers, Cider, NA Beer, Soda & More, Kegs).
   customer menu items).
 - **Order numbers** start at 101 and count up per iPad (localStorage).
   They will collide across iPads until orders go through Square.
+- **Cart-line keys use \u001F, not \u0000.** Keys go into data-*
+  attributes in the cart HTML, and the HTML parser replaces NUL in
+  attribute values with U+FFFD — so with \u0000 separators, Remove,
+  qty +/-, and notes silently did nothing in the browser (the node
+  tests never caught it because they call the functions directly).
+  \u001F survives parsing and can't be typed on the iPad keyboard.
 
 ## How it works
 
@@ -151,8 +175,11 @@ Seltzers, Cider, NA Beer, Soda & More, Kegs).
    size picker (12"/16"/18"/GF 10") with per-size prices, then the
    topping flow: whole / left / right for extra toppings on every
    pizza (specialty pizzas can also skip toppings entirely). Tapping
-   wings opens the flavor flow (flavor → celery → extras).
-   Other items add straight to the order.
+   wings opens the flavor flow (flavor → celery → extras). Tapping
+   a sandwich opens cheese → veggies → meats; tapping a pasta opens
+   sauce → noodle → add-ins. Every step is skippable, and "No
+   changes" on the first step adds the item plain. Other items add
+   straight to the order.
 2. The order panel (right side) shows lines newest first, so what
    was just added sits at the top without scrolling. Each line has
    quantity +/-, a notes field, and Remove. Subtotal, 6% sales tax,
@@ -162,6 +189,9 @@ Seltzers, Cider, NA Beer, Soda & More, Kegs).
    **Send to kitchen**. The order is saved on this iPad and a
    confirmation shows the order number and total.
 4. **Orders** (top right) lists today's sent orders from this iPad.
+   Each order card has a Remove button, which asks once ("Remove
+   this order?") before deleting — saved orders are real customer
+   orders, so removal is deliberate.
 
 ## Wiring it up later (Square)
 
