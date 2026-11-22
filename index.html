@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Beacon POS — Order Screen</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="demo-banner">DEMO — orders do not reach the kitchen yet</div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-name">Beacon Pizza &amp; Tap House</span>
+      <span class="brand-sub">Front counter order screen</span>
+    </div>
+    <button id="orders-btn" class="orders-btn" type="button">Orders <span id="orders-count" class="orders-count">0</span></button>
+  </header>
+
+  <nav id="tabs" class="tabs" aria-label="Menu categories"></nav>
+
+  <!-- ============ ORDER VIEW ============ -->
+  <main id="order-view" class="main">
+    <section class="menu-pane">
+      <div id="drink-jump" class="drink-jump" hidden></div>
+      <div id="grid" class="grid"></div>
+    </section>
+
+    <aside class="cart-pane">
+      <div id="order-type" class="order-type" role="group" aria-label="Order type">
+        <button type="button" class="type-btn active" data-type="dine-in">Dine-in</button>
+        <button type="button" class="type-btn" data-type="pickup">Pickup</button>
+      </div>
+      <input id="table-input" class="table-input" type="text" placeholder="Table # or name" autocomplete="off" maxlength="30">
+
+      <div class="cart-head">
+        <h2>Current order</h2>
+        <button id="clear-btn" class="clear-btn" type="button">Clear</button>
+      </div>
+      <div id="cart-lines" class="cart-lines"></div>
+      <div id="cart-empty" class="cart-empty">Tap items on the left to add them.</div>
+
+      <div class="totals">
+        <div class="total-row"><span>Subtotal</span><span id="subtotal">$0.00</span></div>
+        <div class="total-row"><span>Sales tax (6%)</span><span id="tax">$0.00</span></div>
+        <div class="total-row grand"><span>Total</span><span id="total">$0.00</span></div>
+      </div>
+
+      <button id="send-btn" class="send-btn" type="button" disabled>Send to kitchen</button>
+      <p class="pay-note">Pay in Square — this screen takes the order only.</p>
+    </aside>
+  </main>
+
+  <!-- ============ ORDERS VIEW ============ -->
+  <main id="orders-view" class="orders-view" hidden>
+    <div class="orders-head">
+      <h2>Today's orders</h2>
+      <button id="back-btn" class="back-btn" type="button">Back to ordering</button>
+    </div>
+    <p class="orders-note">Orders sent from this iPad today. Demo only — these did not reach the kitchen.</p>
+    <div id="orders-list" class="orders-list"></div>
+  </main>
+
+  <!-- ============ SIZE PICKER ============ -->
+  <div id="size-modal" class="modal" hidden>
+    <div class="modal-card">
+      <h2 id="size-modal-title">Pick a size</h2>
+      <p class="modal-sub">Gluten-free is a 10&Prime; cauliflower crust.</p>
+      <div id="size-options" class="size-options"></div>
+      <button id="size-cancel" class="cancel-btn" type="button">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ============ SEND CONFIRMATION ============ -->
+  <div id="confirm-modal" class="modal" hidden>
+    <div class="modal-card confirm-card">
+      <div class="confirm-check">&#10003;</div>
+      <h2>Order <span id="confirm-number">#101</span> sent</h2>
+      <p class="confirm-total">Total <span id="confirm-total">$0.00</span></p>
+      <p class="confirm-demo">Demo: saved on this iPad only. It did not reach the kitchen.</p>
+      <p class="confirm-pay">Take payment in Square.</p>
+      <button id="confirm-done" class="send-btn" type="button">Start next order</button>
+    </div>
+  </div>
+
+  <script src="menu.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
