@@ -251,7 +251,7 @@ def main():
         f.write("   Prices are in dollars, exactly as Square lists them.\n")
         f.write("   Pizzas carry per-size prices: 12\"/16\"/18\" plus GF 10\" cauliflower.\n")
         f.write("   Modifier/topping options are NOT in the export, so no topping\n")
-        f.write("   prices exist in this file — the app uses free-text notes instead.\n")
+        f.write("   prices exist in this file — those live in modifiers.js.\n")
         f.write("*/\n")
         f.write("window.BEACON_MENU = ")
         f.write(json.dumps(menu, indent=2, ensure_ascii=False))

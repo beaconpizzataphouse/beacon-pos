@@ -404,6 +404,80 @@ button:disabled { opacity: 0.45; cursor: default; }
 .confirm-demo { color: var(--amber-ink); font-weight: 700; font-size: 16px; margin: 8px 0; }
 .confirm-pay { color: var(--muted); font-size: 16px; margin: 8px 0 0; }
 
+/* ---------- modifier flow modal (pizza toppings / wing flavors) ---------- */
+.flow-card {
+  max-width: 780px;
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+}
+.flow-options {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 16px;
+  padding-right: 4px;
+}
+.flow-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.opt-btn {
+  min-height: 64px;
+  padding: 10px 12px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  background: var(--bg);
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+}
+.opt-btn:active { border-color: var(--accent); }
+.opt-btn.selected {
+  border-color: var(--accent);
+  background: #fdf2f2;
+}
+.opt-label { font-size: 18px; font-weight: 700; line-height: 1.2; }
+.opt-btn.selected .opt-label::after {
+  content: " \2713";
+  color: var(--accent);
+}
+.opt-price { font-size: 16px; font-weight: 700; color: var(--accent); }
+.opt-section { margin: 18px 0 8px; font-size: 19px; font-weight: 800; }
+.opt-section:first-child { margin-top: 0; }
+.flow-skip {
+  width: 100%;
+  min-height: 60px;
+  margin-top: 16px;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--bg);
+  border: 2px dashed var(--line);
+  border-radius: 12px;
+}
+.flow-foot {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  flex: 0 0 auto;
+}
+.flow-foot .cancel-btn { margin-top: 0; flex: 1 1 0; }
+.flow-foot .send-btn { margin-top: 0; flex: 2 1 0; }
+
+/* modifier detail under a cart line / order item */
+.line-detail {
+  margin-top: 4px;
+  font-size: 16px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.order-detail { color: var(--muted); }
+
 /* ---------- portrait / narrow: cart stacks under the menu ---------- */
 @media (max-width: 900px) {
   .main { flex-direction: column; }

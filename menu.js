@@ -5,7 +5,7 @@
    Prices are in dollars, exactly as Square lists them.
    Pizzas carry per-size prices: 12"/16"/18" plus GF 10" cauliflower.
    Modifier/topping options are NOT in the export, so no topping
-   prices exist in this file — the app uses free-text notes instead.
+   prices exist in this file — those live in modifiers.js.
 */
 window.BEACON_MENU = {
   "generatedFrom": "square-catalog-2026-11-21.csv (Square Item Library export, Nov 21 2026)",

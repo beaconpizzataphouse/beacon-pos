@@ -7,9 +7,11 @@
 
    Menu data comes from menu.js, generated from the Square Item
    Library export (see generate_menu.py). Prices are exact Square
-   prices. Topping/modifier options are NOT in the Square export,
-   so pizzas get size selection only and every line gets a
-   free-text notes field instead (e.g. "extra cheese").
+   prices. Modifier data (toppings, wing flavors) comes from
+   modifiers.js, generated from modifiers.json, which was read from
+   the Square Dashboard's modifier lists (see generate_modifiers.py).
+   Pizza and wing items walk a step-by-step modifier flow (one
+   question per window); other items add straight to the order.
 
    Money is handled in integer cents everywhere to avoid float
    rounding. Tax is 6% (Square's Sales Tax rate in the export).
@@ -19,13 +21,15 @@
    kitchen display (beacon-kds) read the same orders. The order
    shape below already matches what the KDS expects:
      { number, type: "dine-in"|"pickup", name,
-       items: [{ name, size, qty, priceCents, notes }],
+       items: [{ name, size, qty, priceCents, notes, detail,
+                 mods: [{ name, priceCents }] }],
        subtotalCents, taxCents, totalCents, placedAt, status }
    ================================================================ */
 (function () {
   "use strict";
 
   var MENU = (typeof window !== "undefined" && window.BEACON_MENU) || null;
+  var MODS = (typeof window !== "undefined" && window.BEACON_MODIFIERS) || null;
   var TAX_RATE = MENU ? MENU.taxRate : 0.06;
 
   var ORDERS_KEY = "beacon-pos-orders-v1";
@@ -34,14 +38,19 @@
 
   var SIZE_LABELS = { "12": "12\u2033", "16": "16\u2033", "18": "18\u2033", "gf": "GF 10\u2033" };
   var SIZE_ORDER = ["12", "16", "18", "gf"];
+  /* topping sets are keyed by inch size; GF 10" uses the 10" sets */
+  var TOPPING_SIZE = { "12": "12", "16": "16", "18": "18", "gf": "10" };
+  var BYO_NAME = "Build Your Own";
+  var HALF_HALF_FLAVOR = "1/2 &1/2"; /* raw Square name; displayed "1/2 & 1/2" */
 
   var state = {
     tab: "pizzas",
     view: "order",          // "order" | "orders"
-    cart: [],               // { key, name, size, priceCents, qty, notes, category }
+    cart: [],               // { key, name, size, priceCents, qty, notes, category, detail, mods }
     orderType: "dine-in",
     tableName: "",
     pendingPizza: null,     // pizza awaiting a size choice
+    flow: null,             // active modifier flow (pizza or wings), see startPizzaFlow/startWingFlow
     lastOrder: null
   };
 
@@ -74,33 +83,151 @@
     return null;
   }
 
-  /* ---------------- cart ---------------- */
-  function lineKey(name, size, notes) {
-    return name + "\u0000" + (size || "") + "\u0000" + (notes || "");
+  function pizzaByName(name) {
+    var cat = categoryById("pizzas");
+    if (!cat) return null;
+    for (var i = 0; i < cat.items.length; i++) {
+      if (cat.items[i].name === name) return cat.items[i];
+    }
+    return null;
   }
 
-  function addToCart(name, size, priceCents, category) {
-    var key = lineKey(name, size, "");
+  /* ---------------- modifiers ---------------- */
+  /* What the screen shows for a Square option name. Square has a
+     few spelling quirks ("Green Oniond", "Classic Pepperonii");
+     modifiers.js carries the fix map. Unknown names pass through. */
+  function displayName(raw) {
+    if (MODS && MODS.displayNameFixes && MODS.displayNameFixes[raw]) {
+      return MODS.displayNameFixes[raw];
+    }
+    return raw;
+  }
+
+  /* Raw [name, priceDollars] pairs for a modifier set key. */
+  function modSet(key) {
+    if (!MODS || !MODS.sets) return [];
+    return MODS.sets[key] || [];
+  }
+
+  /* Options as { name (raw), display, priceCents }. A null price in
+     Square (blank field) counts as $0.00. */
+  function modOptions(key) {
+    return modSet(key).map(function (o) {
+      return { name: o[0], display: displayName(o[0]),
+               priceCents: toCents(o[1] == null ? 0 : o[1]) };
+    });
+  }
+
+  function modPrice(key, rawName) {
+    var opts = modSet(key);
+    for (var i = 0; i < opts.length; i++) {
+      if (opts[i][0] === rawName) return toCents(opts[i][1] == null ? 0 : opts[i][1]);
+    }
+    return 0;
+  }
+
+  /* Topping set for a pizza size + coverage: whole_12, left_16, ... */
+  function toppingSetKey(sizeKey, coverage) {
+    var sz = TOPPING_SIZE[sizeKey] || "12";
+    if (coverage === "left") return "left_" + sz;
+    if (coverage === "right") return "right_" + sz;
+    return "whole_" + sz;
+  }
+
+  /* Half-pizza sets list 29 toppings first, then the 13 specialty-
+     pizza halves. Split them so the picker can show two sections. */
+  function splitHalfSet(options) {
+    var nSpecialty = 13;
+    var cut = Math.max(0, options.length - nSpecialty);
+    return { toppings: options.slice(0, cut), specialty: options.slice(cut) };
+  }
+
+  /* ---------------- cart ---------------- */
+  function lineKey(name, size, detail, notes) {
+    return name + "\u0000" + (size || "") + "\u0000" + (detail || "") + "\u0000" + (notes || "");
+  }
+
+  function addToCart(name, size, priceCents, category, detail, mods) {
+    var key = lineKey(name, size, detail || "", "");
     for (var i = 0; i < state.cart.length; i++) {
       if (state.cart[i].key === key) { state.cart[i].qty += 1; return state.cart[i]; }
     }
     var line = { key: key, name: name, size: size || "", priceCents: priceCents,
-                 qty: 1, notes: "", category: category || "" };
+                 qty: 1, notes: "", category: category || "",
+                 detail: detail || "", mods: mods || [] };
     state.cart.push(line);
     return line;
   }
 
   function addPizza(pizzaName, sizeKey) {
-    var cat = categoryById("pizzas");
-    if (!cat) return null;
-    for (var i = 0; i < cat.items.length; i++) {
-      if (cat.items[i].name === pizzaName) {
-        var price = cat.items[i].sizes[sizeKey];
-        if (price == null) return null;
-        return addToCart(pizzaName, SIZE_LABELS[sizeKey] || sizeKey, toCents(price), "pizza");
+    var pizza = pizzaByName(pizzaName);
+    if (!pizza) return null;
+    var price = pizza.sizes[sizeKey];
+    if (price == null) return null;
+    return addToCart(pizzaName, SIZE_LABELS[sizeKey] || sizeKey, toCents(price), "pizza");
+  }
+
+  /* Build a pizza cart line from a finished modifier flow.
+     pickedNames: raw Square option names, in the order tapped.
+     coverage: "whole" | "left" | "right". */
+  function buildPizzaLine(pizzaName, sizeKey, coverage, pickedNames) {
+    var pizza = pizzaByName(pizzaName);
+    if (!pizza) return null;
+    var price = pizza.sizes[sizeKey];
+    if (price == null) return null;
+    var isBYO = pizzaName === BYO_NAME;
+    var setKey = toppingSetKey(sizeKey, coverage);
+    var mods = pickedNames.map(function (n) {
+      return { name: displayName(n), priceCents: modPrice(setKey, n) };
+    });
+    var priceCents = toCents(price);
+    for (var i = 0; i < mods.length; i++) priceCents += mods[i].priceCents;
+    var detail = "";
+    var names = mods.map(function (m) { return m.name; }).join(", ");
+    if (isBYO) {
+      if (coverage === "left" || coverage === "right") {
+        var side = coverage === "left" ? "Left" : "Right";
+        detail = side + ": " + (names || "cheese only");
+      } else {
+        detail = names; /* plain cheese BYO has no detail */
       }
+    } else {
+      detail = names ? "+ " + names : "";
     }
-    return null;
+    return { name: pizzaName, size: SIZE_LABELS[sizeKey] || sizeKey,
+             priceCents: priceCents, detail: detail, mods: mods, category: "pizza" };
+  }
+
+  /* Build a wings cart line from a finished modifier flow.
+     flavor: raw wing_flavors name; halves: raw half_half_wings names
+     (only when flavor is 1/2 & 1/2); celery: "Celery"|"No Celery";
+     flats: "none"|"All Flats"|"All Drums"; sauceNames: raw
+     wing_sauce_side names. */
+  function buildWingLine(name, priceCents, flavor, halves, celery, flats, dryRub, sauceNames) {
+    var mods = [];
+    var parts = [];
+    if (flavor === HALF_HALF_FLAVOR) {
+      parts.push(halves.map(displayName).join(", "));
+    } else {
+      parts.push(displayName(flavor));
+    }
+    parts.push(displayName(celery));
+    if (flats === "All Flats") {
+      mods.push({ name: "All Flats", priceCents: modPrice("flats_drums", "All Flats") });
+      parts.push("All Flats");
+    } else if (flats === "All Drums") {
+      parts.push("All Drums");
+    }
+    if (dryRub) parts.push("Spicy dry rub");
+    var sauces = (sauceNames || []).map(function (n) {
+      mods.push({ name: displayName(n), priceCents: modPrice("wing_sauce_side", n) });
+      return "+ " + displayName(n);
+    });
+    if (sauces.length) parts.push(sauces.join(", "));
+    var total = priceCents;
+    for (var i = 0; i < mods.length; i++) total += mods[i].priceCents;
+    return { name: name, size: "", priceCents: total,
+             detail: parts.join(" \u00b7 "), mods: mods, category: "wings" };
   }
 
   function findLine(key) {
@@ -127,7 +254,7 @@
     var line = findLine(key);
     if (!line) return;
     line.notes = notes;
-    line.key = lineKey(line.name, line.size, notes);
+    line.key = lineKey(line.name, line.size, line.detail, notes);
   }
 
   function clearCart() { state.cart = []; }
@@ -167,7 +294,8 @@
       name: state.tableName.trim(),
       items: state.cart.map(function (l) {
         return { name: l.name, size: l.size, qty: l.qty,
-                 priceCents: l.priceCents, notes: l.notes };
+                 priceCents: l.priceCents, notes: l.notes,
+                 detail: l.detail || "", mods: l.mods || [] };
       }),
       subtotalCents: totals.subtotalCents,
       taxCents: totals.taxCents,
@@ -247,9 +375,11 @@
   function cartLinesHTML() {
     return state.cart.map(function (l) {
       var sizePart = l.size ? ' <span class="line-size">' + esc(l.size) + "</span>" : "";
+      var detailPart = l.detail ? '<div class="line-detail">' + esc(l.detail) + "</div>" : "";
       return '<div class="cart-line">' +
         '<div class="line-top"><span class="line-name">' + esc(l.name) + sizePart + "</span>" +
         '<span class="line-total">' + fmt(l.priceCents * l.qty) + "</span></div>" +
+        detailPart +
         '<div class="line-controls">' +
         '<button type="button" class="qty-btn" data-qty="-1" data-key="' + esc(l.key) + '">&minus;</button>' +
         '<span class="qty">' + l.qty + "</span>" +
@@ -272,8 +402,9 @@
       var who = o.name ? " &middot; " + esc(o.name) : "";
       var items = o.items.map(function (it) {
         var size = it.size ? " " + esc(it.size) : "";
+        var detail = it.detail ? ' <span class="order-detail">' + esc(it.detail) + "</span>" : "";
         var notes = it.notes ? ' <em>(' + esc(it.notes) + ")</em>" : "";
-        return "<li>" + it.qty + " &times; " + esc(it.name) + size + notes + "</li>";
+        return "<li>" + it.qty + " &times; " + esc(it.name) + size + detail + notes + "</li>";
       }).join("");
       return '<div class="order-card">' +
         '<div class="order-card-top"><span class="order-num">Order #' + o.number + "</span>" +
@@ -375,6 +506,253 @@
     if (modal) modal.hidden = true;
   }
 
+  /* ---------------- modifier flows ----------------
+     One question per window, big buttons, Back on every step.
+     Pizza: size (size picker) -> coverage (BYO only) -> toppings.
+     Wings: flavor -> half flavors (only for 1/2 & 1/2) -> celery ->
+     extras. Single-pick steps advance on tap; multi-pick steps
+     have a Done button. Back returns to the previous step, or to
+     the size picker for pizzas / closes the flow for wings. */
+  function startPizzaFlow(pizzaName, sizeKey) {
+    var isBYO = pizzaName === BYO_NAME;
+    state.flow = {
+      kind: "pizza", pizzaName: pizzaName, sizeKey: sizeKey, isBYO: isBYO,
+      step: isBYO ? "coverage" : "toppings",
+      coverage: isBYO ? null : "whole",
+      picked: {}, pickedOrder: []
+    };
+    renderFlow();
+    var modal = el("flow-modal");
+    if (modal) modal.hidden = false;
+  }
+
+  function startWingFlow(name, priceCents) {
+    state.flow = {
+      kind: "wings", name: name, priceCents: priceCents,
+      boneIn: name.indexOf("Bone-in") === 0,
+      step: "flavor", flavor: null, halves: [], celery: null,
+      flats: "none", dryRub: false, sauces: {}
+    };
+    renderFlow();
+    var modal = el("flow-modal");
+    if (modal) modal.hidden = false;
+  }
+
+  function closeFlow() {
+    state.flow = null;
+    var modal = el("flow-modal");
+    if (modal) modal.hidden = true;
+  }
+
+  function optBtnHTML(action, value, label, priceCents, selected) {
+    var pricePart = priceCents > 0
+      ? '<span class="opt-price">+' + fmt(priceCents) + "</span>" : "";
+    return '<button type="button" class="opt-btn' + (selected ? " selected" : "") +
+      '" data-action="' + action + '" data-value="' + esc(value) + '">' +
+      '<span class="opt-label">' + esc(label) + "</span>" + pricePart + "</button>";
+  }
+
+  function footBackHTML(label) {
+    return '<button type="button" class="cancel-btn flow-back" data-action="back">' +
+      esc(label) + "</button>";
+  }
+
+  function footDoneHTML(label, disabled) {
+    return '<button type="button" class="send-btn flow-done" data-action="done"' +
+      (disabled ? " disabled" : "") + ">" + esc(label) + "</button>";
+  }
+
+  function toppingGridHTML(options, picked) {
+    return '<div class="flow-grid">' + options.map(function (o) {
+      return optBtnHTML("topping", o.name, o.display, o.priceCents, !!picked[o.name]);
+    }).join("") + "</div>";
+  }
+
+  function renderFlow() {
+    var f = state.flow;
+    if (!f) return;
+    var title = el("flow-title"), sub = el("flow-sub"),
+        opts = el("flow-options"), foot = el("flow-foot");
+    var t = "", s = "", html = "", footHTML = "";
+    if (f.kind === "pizza") {
+      t = f.pizzaName + " — " + (SIZE_LABELS[f.sizeKey] || f.sizeKey);
+      if (f.step === "coverage") {
+        s = "Whole pizza, or just one half?";
+        html = '<div class="flow-grid">' +
+          optBtnHTML("coverage", "whole", "Whole pizza", 0, false) +
+          optBtnHTML("coverage", "left", "Left half", 0, false) +
+          optBtnHTML("coverage", "right", "Right half", 0, false) +
+          "</div>";
+        footHTML = footBackHTML("Back");
+      } else {
+        var options = modOptions(toppingSetKey(f.sizeKey, f.coverage));
+        if (f.isBYO && f.coverage !== "whole") {
+          s = "Pick toppings for the " + f.coverage + " half";
+          var split = splitHalfSet(options);
+          html = '<h3 class="opt-section">Toppings</h3>' +
+            toppingGridHTML(split.toppings, f.picked) +
+            '<h3 class="opt-section">Specialty half</h3>' +
+            toppingGridHTML(split.specialty, f.picked);
+        } else if (f.isBYO) {
+          s = "Pick your toppings";
+          html = toppingGridHTML(options, f.picked);
+        } else {
+          s = "Add extra toppings? (optional)";
+          html = toppingGridHTML(options, f.picked) +
+            '<button type="button" class="flow-skip" data-action="skip-toppings">' +
+            "No extra toppings</button>";
+        }
+        footHTML = footBackHTML("Back") + footDoneHTML("Add to order", false);
+      }
+    } else {
+      t = f.name;
+      if (f.step === "flavor") {
+        s = "Pick a flavor";
+        html = '<div class="flow-grid">' + modOptions("wing_flavors").map(function (o) {
+          return optBtnHTML("flavor", o.name, o.display, o.priceCents, false);
+        }).join("") + "</div>";
+        footHTML = footBackHTML("Cancel");
+      } else if (f.step === "halves") {
+        s = "Pick the two half flavors";
+        html = '<div class="flow-grid">' + modOptions("half_half_wings").map(function (o) {
+          return optBtnHTML("half", o.name, o.display, o.priceCents,
+            f.halves.indexOf(o.name) !== -1);
+        }).join("") + "</div>";
+        footHTML = footBackHTML("Back") + footDoneHTML("Next", f.halves.length !== 2);
+      } else if (f.step === "celery") {
+        s = "Celery with that?";
+        html = '<div class="flow-grid">' + modOptions("wing_side").map(function (o) {
+          return optBtnHTML("celery", o.name, o.display, o.priceCents, false);
+        }).join("") + "</div>";
+        footHTML = footBackHTML("Back");
+      } else {
+        s = "Any extras? (optional)";
+        if (f.boneIn) {
+          html += '<h3 class="opt-section">Flats or drums</h3><div class="flow-grid">' +
+            optBtnHTML("flats", "none", "Mixed, as they come", 0, f.flats === "none") +
+            optBtnHTML("flats", "All Flats", "All Flats",
+              modPrice("flats_drums", "All Flats"), f.flats === "All Flats") +
+            optBtnHTML("flats", "All Drums", "All Drums", 0, f.flats === "All Drums") +
+            "</div>";
+        }
+        html += '<h3 class="opt-section">Dry rub</h3><div class="flow-grid">' +
+          optBtnHTML("dryrub", "dryrub", "Add spicy dry rub", 0, f.dryRub) + "</div>";
+        html += '<h3 class="opt-section">Sauces on the side</h3><div class="flow-grid">' +
+          modOptions("wing_sauce_side").map(function (o) {
+            return optBtnHTML("sauce", o.name, o.display, o.priceCents, !!f.sauces[o.name]);
+          }).join("") + "</div>";
+        footHTML = footBackHTML("Back") + footDoneHTML("Add to order", false);
+      }
+    }
+    if (title) title.textContent = t;
+    if (sub) sub.textContent = s;
+    if (opts) opts.innerHTML = html;
+    if (foot) foot.innerHTML = footHTML;
+  }
+
+  function flowPick(action, value) {
+    var f = state.flow;
+    if (!f) return;
+    if (action === "coverage") {
+      f.coverage = value;
+      f.step = "toppings";
+      renderFlow();
+    } else if (action === "topping") {
+      if (f.picked[value]) {
+        delete f.picked[value];
+        f.pickedOrder = f.pickedOrder.filter(function (n) { return n !== value; });
+      } else {
+        f.picked[value] = true;
+        f.pickedOrder.push(value);
+      }
+      renderFlow();
+    } else if (action === "skip-toppings") {
+      finishPizzaFlow();
+    } else if (action === "flavor") {
+      f.flavor = value;
+      f.step = (value === HALF_HALF_FLAVOR) ? "halves" : "celery";
+      renderFlow();
+    } else if (action === "half") {
+      var i = f.halves.indexOf(value);
+      if (i !== -1) f.halves.splice(i, 1);
+      else if (f.halves.length < 2) f.halves.push(value);
+      renderFlow();
+    } else if (action === "celery") {
+      f.celery = value;
+      f.step = "extras";
+      renderFlow();
+    } else if (action === "flats") {
+      f.flats = value;
+      renderFlow();
+    } else if (action === "dryrub") {
+      f.dryRub = !f.dryRub;
+      renderFlow();
+    } else if (action === "sauce") {
+      if (f.sauces[value]) delete f.sauces[value];
+      else f.sauces[value] = true;
+      renderFlow();
+    }
+  }
+
+  function flowBack() {
+    var f = state.flow;
+    if (!f) return;
+    if (f.kind === "pizza") {
+      if (f.step === "toppings" && f.isBYO) {
+        f.step = "coverage";
+        renderFlow();
+      } else {
+        var name = f.pizzaName;
+        closeFlow();
+        openSizePicker(name);
+      }
+    } else {
+      if (f.step === "flavor") closeFlow();
+      else if (f.step === "halves") { f.step = "flavor"; renderFlow(); }
+      else if (f.step === "celery") {
+        f.step = (f.flavor === HALF_HALF_FLAVOR) ? "halves" : "flavor";
+        renderFlow();
+      } else { f.step = "celery"; renderFlow(); }
+    }
+  }
+
+  function flowDone() {
+    var f = state.flow;
+    if (!f) return;
+    if (f.kind === "pizza" && f.step === "toppings") finishPizzaFlow();
+    else if (f.kind === "wings" && f.step === "halves") {
+      if (f.halves.length === 2) { f.step = "celery"; renderFlow(); }
+    } else if (f.kind === "wings" && f.step === "extras") finishWingFlow();
+  }
+
+  function finishPizzaFlow() {
+    var f = state.flow;
+    if (!f) return;
+    var line = buildPizzaLine(f.pizzaName, f.sizeKey, f.coverage, f.pickedOrder);
+    if (line) addToCart(line.name, line.size, line.priceCents, line.category, line.detail, line.mods);
+    closeFlow();
+    renderCart();
+  }
+
+  function finishWingFlow() {
+    var f = state.flow;
+    if (!f) return;
+    var line = buildWingLine(f.name, f.priceCents, f.flavor, f.halves, f.celery,
+      f.flats, f.dryRub, Object.keys(f.sauces));
+    if (line) addToCart(line.name, line.size, line.priceCents, line.category, line.detail, line.mods);
+    closeFlow();
+    renderCart();
+  }
+
+  function onFlowClick(e) {
+    var btn = closestBtn(e.target, "data-action");
+    if (!btn) return;
+    var action = btn.getAttribute("data-action");
+    if (action === "back") { flowBack(); return; }
+    if (action === "done") { flowDone(); return; }
+    flowPick(action, btn.getAttribute("data-value"));
+  }
+
   function showConfirm(order) {
     var n = el("confirm-number"), t = el("confirm-total"), m = el("confirm-modal");
     if (n) n.textContent = "#" + order.number;
@@ -419,10 +797,14 @@
     if (pizzaBtn) { openSizePicker(pizzaBtn.getAttribute("data-pizza")); return; }
     var itemBtn = closestBtn(e.target, "data-name");
     if (itemBtn) {
-      addToCart(itemBtn.getAttribute("data-name"), "",
-        toCents(parseFloat(itemBtn.getAttribute("data-price"))),
-        itemBtn.getAttribute("data-cat"));
-      renderCart();
+      var cat = itemBtn.getAttribute("data-cat");
+      var price = toCents(parseFloat(itemBtn.getAttribute("data-price")));
+      if (cat === "wings" && MODS) {
+        startWingFlow(itemBtn.getAttribute("data-name"), price);
+      } else {
+        addToCart(itemBtn.getAttribute("data-name"), "", price, cat);
+        renderCart();
+      }
     }
   }
 
@@ -461,9 +843,16 @@
   function onSizeOptionsClick(e) {
     var btn = closestBtn(e.target, "data-size");
     if (!btn || !state.pendingPizza) return;
-    addPizza(state.pendingPizza.name, btn.getAttribute("data-size"));
+    var sizeKey = btn.getAttribute("data-size");
+    var pizzaName = state.pendingPizza.name;
     closeSizePicker();
-    renderCart();
+    if (MODS) {
+      startPizzaFlow(pizzaName, sizeKey);
+    } else {
+      /* modifiers.js missing — fall back to a plain pizza */
+      addPizza(pizzaName, sizeKey);
+      renderCart();
+    }
   }
 
   function onSend() {
@@ -484,7 +873,8 @@
         clear = el("clear-btn"), ordersBtn = el("orders-btn"),
         back = el("back-btn"), sizeOpts = el("size-options"),
         sizeCancel = el("size-cancel"), confirmDone = el("confirm-done"),
-        sizeModal = el("size-modal"), confirmModal = el("confirm-modal");
+        sizeModal = el("size-modal"), confirmModal = el("confirm-modal"),
+        flowModal = el("flow-modal");
 
     if (tabs) tabs.addEventListener("click", onTabsClick);
     if (grid) grid.addEventListener("click", onGridClick);
@@ -510,6 +900,10 @@
     if (confirmModal) confirmModal.addEventListener("click", function (e) {
       if (e.target === confirmModal) hideConfirm();
     });
+    if (flowModal) flowModal.addEventListener("click", function (e) {
+      if (e.target === flowModal) { closeFlow(); return; }
+      onFlowClick(e);
+    });
     renderAll();
   }
 
@@ -525,7 +919,10 @@
   var api = {
     state: state, TAX_RATE: TAX_RATE, SIZE_LABELS: SIZE_LABELS,
     toCents: toCents, fmt: fmt, esc: esc,
-    categoryById: categoryById,
+    categoryById: categoryById, pizzaByName: pizzaByName,
+    displayName: displayName, modSet: modSet, modOptions: modOptions,
+    modPrice: modPrice, toppingSetKey: toppingSetKey, splitHalfSet: splitHalfSet,
+    buildPizzaLine: buildPizzaLine, buildWingLine: buildWingLine,
     addToCart: addToCart, addPizza: addPizza,
     changeQty: changeQty, removeLine: removeLine,
     setLineNotes: setLineNotes, clearCart: clearCart,
@@ -535,7 +932,12 @@
     tabsHTML: tabsHTML, gridHTML: gridHTML, drinkJumpHTML: drinkJumpHTML,
     cartLinesHTML: cartLinesHTML, ordersHTML: ordersHTML,
     renderAll: renderAll, showView: showView,
-    openSizePicker: openSizePicker, closeSizePicker: closeSizePicker
+    openSizePicker: openSizePicker, closeSizePicker: closeSizePicker,
+    startPizzaFlow: startPizzaFlow, startWingFlow: startWingFlow,
+    closeFlow: closeFlow, renderFlow: renderFlow,
+    flowPick: flowPick, flowBack: flowBack, flowDone: flowDone,
+    finishPizzaFlow: finishPizzaFlow, finishWingFlow: finishWingFlow,
+    HALF_HALF_FLAVOR: HALF_HALF_FLAVOR
   };
   if (typeof window !== "undefined") window.POS = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
