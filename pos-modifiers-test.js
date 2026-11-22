@@ -2,9 +2,10 @@
 // Runs the REAL menu.js + modifiers.js + app.js in a vm context with
 // DOM stubs (same pattern as pos-test.js).
 // Checks: modifier data, display-name fixes, BYO whole/half topping
-// math, specialty extra toppings, wing flavor + 1/2&1/2 flow, All
-// Flats +$3, sauce-on-the-side math, flow navigation/back, cart
-// merge rules with modifiers, and that orders persist the detail.
+// math, specialty extra toppings (whole + half-and-half), wing
+// flavor + 1/2&1/2 flow, All Flats +$3, sauce-on-the-side math, flow
+// navigation/back, cart merge rules with modifiers, and that orders
+// persist the detail.
 //
 // Run from this folder: node pos-modifiers-test.js
 "use strict";
@@ -159,6 +160,31 @@ line = POS.buildPizzaLine("Jibe", "18", "whole", []);
 check("plain specialty still works", line.priceCents === 2995 && line.detail === "");
 check("unknown pizza returns null", POS.buildPizzaLine("Nope", "16", "whole", []) === null);
 
+/* ---------- specialty half-and-half math ---------- */
+console.log("specialty half-and-half math:");
+/* Note: Square spells it "Jalapenos" (no accent) in the 16"/18" sets
+   and "Jalapeños" in the 10"/12" sets. The raw key stays as Square has
+   it, but the display fix normalizes it to "Jalapeños" on screen. */
+line = POS.buildHalfHalfLine("Hawaiian", "18", ["Jalapenos"], ["Olives"]);
+check("18in Hawaiian + left jalapenos + right olives = $29.55", line.priceCents === 2955, "got " + line.priceCents);
+check("specialty half detail", line.detail === "Left: Jalapeños; Right: Olives", line.detail);
+check("specialty half mods priced per side", line.mods.length === 2 &&
+  line.mods[0].priceCents === 80 && line.mods[1].priceCents === 80);
+line = POS.buildHalfHalfLine("Hawaiian", "18", ["Jalapenos"], []);
+check("one half only = $28.75", line.priceCents === 2875, "got " + line.priceCents);
+check("one-half-only detail has no cheese only",
+  line.detail === "Left: Jalapeños", line.detail);
+line = POS.buildHalfHalfLine("Hawaiian", "18", [], []);
+check("both halves plain specialty = base price, no detail",
+  line.priceCents === 2795 && line.detail === "");
+line = POS.buildHalfHalfLine("Classic Pepperoni", "16", ["Hawaiian"], []);
+check("16in pepperoni + left Hawaiian half = $25.15", line.priceCents === 2515, "got " + line.priceCents);
+check("specialty half can hold a specialty half",
+  line.detail === "Left: Hawaiian", line.detail);
+line = POS.buildHalfHalfLine("Hawaiian", "gf", ["Jalapeños"], ["Olives"]);
+check("GF Hawaiian halves use 10in sets = $20.65", line.priceCents === 2065, "got " + line.priceCents);
+check("GF specialty half detail", line.detail === "Left: Jalapeños; Right: Olives", line.detail);
+
 /* ---------- wing math ---------- */
 console.log("wing math:");
 line = POS.buildWingLine("Bone-in Wings", 1899, "Buffalo", [], "Celery", "none", false, []);
@@ -261,9 +287,18 @@ POS.flowBack(); // no flow open; must not throw
 check("flowBack with no flow is safe", POS.state.flow === null);
 
 POS.startPizzaFlow("Classic Pepperoni", "12");
-check("specialty starts at toppings (no coverage)",
+check("specialty starts at coverage",
+  POS.state.flow.step === "coverage");
+check("specialty coverage asks about extra toppings",
+  byId["flow-sub"].textContent === "Add extra toppings?");
+check("specialty coverage offers 4 choices",
+  (byId["flow-options"].innerHTML.match(/opt-btn/g) || []).length === 4);
+check("specialty coverage offers skip",
+  byId["flow-options"].innerHTML.indexOf("No extra toppings") !== -1);
+POS.flowPick("coverage", "whole");
+check("specialty whole goes to toppings",
   POS.state.flow.step === "toppings");
-check("specialty toppings offer skip",
+check("specialty toppings still offer skip",
   byId["flow-options"].innerHTML.indexOf("No extra toppings") !== -1);
 POS.flowPick("topping", "Extra Cheese");
 POS.flowPick("topping", "Extra Cheese"); // toggle off
@@ -275,7 +310,7 @@ check("specialty detail", POS.state.cart[1].detail === "+ Mushrooms", POS.state.
 
 POS.startPizzaFlow("Jibe", "18");
 POS.flowPick("skip-toppings");
-check("skip adds plain specialty", POS.state.cart[2].priceCents === 2995 &&
+check("skip from coverage adds plain specialty", POS.state.cart[2].priceCents === 2995 &&
   POS.state.cart[2].detail === "");
 
 /* back from toppings returns to coverage for BYO */
@@ -377,6 +412,94 @@ function halfHalf16() {
 halfHalf16();
 halfHalf16();
 check("identical half-and-half lines merge to qty 2",
+  POS.state.cart.length === 1 && POS.state.cart[0].qty === 2);
+
+/* ---------- specialty half-and-half flow ---------- */
+console.log("specialty half-and-half flow:");
+POS.clearCart();
+POS.startPizzaFlow("Hawaiian", "18");
+check("Hawaiian starts at coverage", POS.state.flow.step === "coverage");
+POS.flowPick("coverage", "left");
+check("specialty left goes to toppings", POS.state.flow.step === "toppings");
+check("specialty half picker has Specialty half section",
+  byId["flow-options"].innerHTML.indexOf("Specialty half") !== -1);
+POS.flowPick("topping", "Jalapenos");
+POS.flowDone();
+check("specialty Done on first half offers the other half",
+  POS.state.flow !== null && POS.state.flow.halfStep === 2 &&
+  byId["flow-sub"].textContent.indexOf("Now the right half") !== -1);
+POS.flowPick("topping", "Olives");
+POS.flowDone();
+check("specialty half-and-half adds 1 line", POS.state.cart.length === 1);
+check("specialty half-and-half line $29.55", POS.state.cart[0].priceCents === 2955,
+  "got " + (POS.state.cart[0] && POS.state.cart[0].priceCents));
+check("specialty half-and-half detail",
+  POS.state.cart[0].detail === "Left: Jalapeños; Right: Olives", POS.state.cart[0].detail);
+check("flow closed after both halves", POS.state.flow === null);
+
+/* one half only via the flow — no "cheese only" on a specialty */
+POS.startPizzaFlow("Hawaiian", "18");
+POS.flowPick("coverage", "right");
+POS.flowPick("topping", "Olives");
+POS.flowDone();
+POS.flowDone(); // left half: nothing picked
+check("one-half-only specialty line $28.75", POS.state.cart[1].priceCents === 2875,
+  "got " + (POS.state.cart[1] && POS.state.cart[1].priceCents));
+check("one-half-only detail, no cheese only",
+  POS.state.cart[1].detail === "Right: Olives", POS.state.cart[1].detail);
+
+/* Back from the second half keeps both halves' picks (specialty) */
+POS.startPizzaFlow("Classic Pepperoni", "16");
+POS.flowPick("coverage", "left");
+POS.flowPick("topping", "Mushrooms");
+POS.flowDone(); // onto the right half
+POS.flowPick("topping", "Hawaiian");
+POS.flowBack(); // back to the left half
+check("specialty back from second half returns to first half",
+  POS.state.flow.step === "toppings" && POS.state.flow.halfStep === 1 &&
+  byId["flow-sub"].textContent.indexOf("left half") !== -1);
+check("specialty first-half picks kept after Back",
+  POS.state.flow.picksBySide.left.pickedOrder.join(",") === "Mushrooms" &&
+  byId["flow-options"].innerHTML.indexOf('class="opt-btn selected" data-action="topping" data-value="Mushrooms"') !== -1);
+POS.flowDone(); // forward to the right half again
+check("specialty second-half picks kept after Back + Next",
+  POS.state.flow.picksBySide.right.pickedOrder.join(",") === "Hawaiian" &&
+  byId["flow-options"].innerHTML.indexOf('class="opt-btn selected" data-action="topping" data-value="Hawaiian"') !== -1);
+POS.flowDone();
+check("specialty back-and-forth line $25.85", POS.state.cart[2].priceCents === 2585,
+  "got " + (POS.state.cart[2] && POS.state.cart[2].priceCents));
+check("specialty back-and-forth detail",
+  POS.state.cart[2].detail === "Left: Mushrooms; Right: Hawaiian", POS.state.cart[2].detail);
+
+/* Back from specialty whole toppings returns to coverage */
+POS.startPizzaFlow("Jibe", "18");
+POS.flowPick("coverage", "whole");
+POS.flowBack();
+check("back from specialty toppings returns to coverage", POS.state.flow.step === "coverage");
+POS.closeFlow();
+
+/* GF specialty half uses the 10in sets (CBR at fixed $3.10) */
+POS.startPizzaFlow("Hawaiian", "gf");
+POS.flowPick("coverage", "left");
+check("GF specialty left toppings show CBR at $3.10",
+  byId["flow-options"].innerHTML.indexOf("Chicken Bacon Ranch</span><span class=\"opt-price\">+$3.10</span>") !== -1);
+check("no $310.00 price anywhere in GF specialty left toppings",
+  byId["flow-options"].innerHTML.indexOf("+$310.00") === -1);
+POS.closeFlow();
+
+/* identical specialty half-and-half lines merge */
+POS.clearCart();
+function halfHalfHawaiian18() {
+  POS.startPizzaFlow("Hawaiian", "18");
+  POS.flowPick("coverage", "left");
+  POS.flowPick("topping", "Jalapenos");
+  POS.flowDone();
+  POS.flowPick("topping", "Olives");
+  POS.flowDone();
+}
+halfHalfHawaiian18();
+halfHalfHawaiian18();
+check("identical specialty half-and-half lines merge to qty 2",
   POS.state.cart.length === 1 && POS.state.cart[0].qty === 2);
 
 /* ---------- cart merge + totals + orders ---------- */

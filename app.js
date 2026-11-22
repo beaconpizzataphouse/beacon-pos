@@ -144,12 +144,12 @@
 
   function otherSide(side) { return side === "left" ? "right" : "left"; }
 
-  /* The pick state for the topping picker currently on screen. BYO
-     half flows keep one pick set per side so Back keeps each half's
-     toppings; whole pizzas and specialty pizzas use the flow's own
+  /* The pick state for the topping picker currently on screen. Half
+     flows (any pizza) keep one pick set per side so Back keeps each
+     half's toppings; whole-pizza flows use the flow's own
      picked/pickedOrder. Both shapes have picked + pickedOrder. */
   function flowPicks(f) {
-    if (f.kind === "pizza" && f.isBYO && f.side) return f.picksBySide[f.side];
+    if (f.kind === "pizza" && f.side) return f.picksBySide[f.side];
     return f;
   }
 
@@ -209,34 +209,47 @@
              priceCents: priceCents, detail: detail, mods: mods, category: "pizza" };
   }
 
-  /* Build a BYO half-and-half line from both halves' picks.
+  /* Build a half-and-half line from both halves' picks.
      leftPicks / rightPicks: raw Square option names, in tap order.
      Each side is priced from its own half set. Detail always reads
-     Left first, then Right; a side with no picks reads "cheese
-     only". */
+     Left first, then Right. For Build Your Own a side with no picks
+     reads "cheese only"; for a specialty pizza only halves with
+     picks are shown (the base pizza already covers a plain half),
+     so a specialty with no picks on either half has no detail. */
   function buildHalfHalfLine(pizzaName, sizeKey, leftPicks, rightPicks) {
     var pizza = pizzaByName(pizzaName);
     if (!pizza) return null;
     var price = pizza.sizes[sizeKey];
     if (price == null) return null;
+    var isBYO = pizzaName === BYO_NAME;
     function sideMods(side, picks) {
       var setKey = toppingSetKey(sizeKey, side);
       return (picks || []).map(function (n) {
         return { name: displayName(n), priceCents: modPrice(setKey, n) };
       });
     }
+    function sideNames(ms) {
+      return ms.map(function (m) { return m.name; }).join(", ");
+    }
     function sideDetail(ms) {
-      var names = ms.map(function (m) { return m.name; }).join(", ");
-      return names || "cheese only";
+      return sideNames(ms) || "cheese only";
     }
     var leftMods = sideMods("left", leftPicks);
     var rightMods = sideMods("right", rightPicks);
     var mods = leftMods.concat(rightMods);
     var priceCents = toCents(price);
     for (var i = 0; i < mods.length; i++) priceCents += mods[i].priceCents;
+    var detail;
+    if (isBYO) {
+      detail = "Left: " + sideDetail(leftMods) + "; Right: " + sideDetail(rightMods);
+    } else {
+      var parts = [];
+      if (leftMods.length) parts.push("Left: " + sideNames(leftMods));
+      if (rightMods.length) parts.push("Right: " + sideNames(rightMods));
+      detail = parts.join("; ");
+    }
     return { name: pizzaName, size: SIZE_LABELS[sizeKey] || sizeKey,
-             priceCents: priceCents,
-             detail: "Left: " + sideDetail(leftMods) + "; Right: " + sideDetail(rightMods),
+             priceCents: priceCents, detail: detail,
              mods: mods, category: "pizza" };
   }
 
@@ -554,19 +567,22 @@
 
   /* ---------------- modifier flows ----------------
      One question per window, big buttons, Back on every step.
-     Pizza: size (size picker) -> coverage (BYO only) -> toppings for
-     the first half -> toppings for the other half (BYO half-and-half
-     only; Done with nothing picked = cheese only on that half).
-     Wings: flavor -> half flavors (only for 1/2 & 1/2) -> celery ->
-     extras. Single-pick steps advance on tap; multi-pick steps
-     have a Done button. Back returns to the previous step, or to
-     the size picker for pizzas / closes the flow for wings. */
+     Pizza: size (size picker) -> coverage (Whole / Left half / Right
+     half; specialty pizzas also offer "No extra toppings") ->
+     toppings for the first half -> toppings for the other half
+     (half-and-half only; Done with nothing picked leaves that half
+     plain — cheese only on Build Your Own, the base pizza on a
+     specialty). Wings: flavor -> half flavors (only for 1/2 & 1/2)
+     -> celery -> extras. Single-pick steps advance on tap;
+     multi-pick steps have a Done button. Back returns to the
+     previous step, or to the size picker for pizzas / closes the
+     flow for wings. */
   function startPizzaFlow(pizzaName, sizeKey) {
     var isBYO = pizzaName === BYO_NAME;
     state.flow = {
       kind: "pizza", pizzaName: pizzaName, sizeKey: sizeKey, isBYO: isBYO,
-      step: isBYO ? "coverage" : "toppings",
-      coverage: isBYO ? null : "whole",
+      step: "coverage",
+      coverage: null,
       side: null, halfStep: 1,
       picked: {}, pickedOrder: [],
       /* one pick set per side, so Back keeps each half's toppings */
@@ -629,17 +645,27 @@
     if (f.kind === "pizza") {
       t = f.pizzaName + " — " + (SIZE_LABELS[f.sizeKey] || f.sizeKey);
       if (f.step === "coverage") {
-        s = "Whole pizza, or just one half?";
-        html = '<div class="flow-grid">' +
-          optBtnHTML("coverage", "whole", "Whole pizza", 0, false) +
-          optBtnHTML("coverage", "left", "Left half", 0, false) +
-          optBtnHTML("coverage", "right", "Right half", 0, false) +
-          "</div>";
+        if (f.isBYO) {
+          s = "Whole pizza, or just one half?";
+          html = '<div class="flow-grid">' +
+            optBtnHTML("coverage", "whole", "Whole pizza", 0, false) +
+            optBtnHTML("coverage", "left", "Left half", 0, false) +
+            optBtnHTML("coverage", "right", "Right half", 0, false) +
+            "</div>";
+        } else {
+          s = "Add extra toppings?";
+          html = '<div class="flow-grid">' +
+            optBtnHTML("coverage", "whole", "Whole pizza", 0, false) +
+            optBtnHTML("coverage", "left", "Left half", 0, false) +
+            optBtnHTML("coverage", "right", "Right half", 0, false) +
+            optBtnHTML("skip-toppings", "none", "No extra toppings", 0, false) +
+            "</div>";
+        }
         footHTML = footBackHTML("Back");
       } else {
         var picks = flowPicks(f);
         var options = modOptions(toppingSetKey(f.sizeKey, f.side || f.coverage));
-        if (f.isBYO && f.coverage !== "whole") {
+        if (f.coverage !== "whole") {
           if (f.halfStep === 2) {
             s = "Now the " + f.side + " half \u2014 pick toppings";
           } else {
@@ -736,6 +762,7 @@
       }
       renderFlow();
     } else if (action === "skip-toppings") {
+      f.coverage = "whole"; /* plain pizza, no toppings */
       finishPizzaFlow();
     } else if (action === "flavor") {
       f.flavor = value;
@@ -767,12 +794,12 @@
     var f = state.flow;
     if (!f) return;
     if (f.kind === "pizza") {
-      if (f.step === "toppings" && f.isBYO && f.halfStep === 2) {
+      if (f.step === "toppings" && f.coverage !== "whole" && f.halfStep === 2) {
         /* back to the first half; each half's picks are kept per side */
         f.side = f.coverage;
         f.halfStep = 1;
         renderFlow();
-      } else if (f.step === "toppings" && f.isBYO) {
+      } else if (f.step === "toppings") {
         f.step = "coverage";
         renderFlow();
       } else {
@@ -794,7 +821,7 @@
     var f = state.flow;
     if (!f) return;
     if (f.kind === "pizza" && f.step === "toppings") {
-      if (f.isBYO && f.coverage !== "whole" && f.halfStep === 1) {
+      if (f.coverage !== "whole" && f.halfStep === 1) {
         /* first half done — offer the other half next */
         f.side = otherSide(f.side);
         f.halfStep = 2;
@@ -812,7 +839,7 @@
     var f = state.flow;
     if (!f) return;
     var line;
-    if (f.isBYO && f.coverage !== "whole") {
+    if (f.coverage === "left" || f.coverage === "right") {
       line = buildHalfHalfLine(f.pizzaName, f.sizeKey,
         f.picksBySide.left.pickedOrder, f.picksBySide.right.pickedOrder);
     } else {

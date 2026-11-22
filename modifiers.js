@@ -2320,6 +2320,7 @@ window.BEACON_MODIFIERS = {
   "displayNameFixes": {
     "Classic Pepperonii": "Classic Pepperoni",
     "Green Oniond": "Green Onions",
+    "Jalapenos": "Jalapeños",
     "Mediteranean": "Mediterranean",
     "Peperoncini": "Pepperoncini",
     "Pepperoncinni": "Pepperoncini",

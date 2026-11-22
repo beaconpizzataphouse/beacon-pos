@@ -21,8 +21,8 @@ order only. There is no payment flow here, by design.
 | `modifiers.json` | Modifier lists read from the Square Dashboard (27 sets, 562 options with prices) |
 | `modifiers.js` | Modifier data — **generated, do not hand-edit** (see below) |
 | `generate_modifiers.py` | Builds `modifiers.js` from `modifiers.json` |
-| `pos-test.js` | Regression harness (58 checks): menu, cart, tax, orders — run with `node pos-test.js` |
-| `pos-modifiers-test.js` | Modifier-flow harness (85 checks): topping/wing math, flows, merge rules — run with `node pos-modifiers-test.js` |
+| `pos-test.js` | Regression harness (59 checks): menu, cart, tax, orders — run with `node pos-test.js` |
+| `pos-modifiers-test.js` | Modifier-flow harness (149 checks): topping/wing math, flows, merge rules — run with `node pos-modifiers-test.js` |
 
 ## Modifier source
 
@@ -36,10 +36,12 @@ later. Every price is exact — nothing is hand-copied. To refresh,
 re-read the Dashboard into `modifiers.json` and re-run
 `generate_modifiers.py`.
 
-**Known Square quirk, recorded as-is:** Left Side 10" Chicken Bacon
-Ranch is **$310.00** in Square (every other size/side is $2.60–$3.25).
-That is almost certainly a typo in Square, but the app shows it as
-Square has it until Vince confirms the fix — do NOT "fix" it here.
+**Known Square quirk:** Left Side 10" Chicken Bacon Ranch is **$310.00**
+in Square (every other size/side is $2.60–$3.25) — almost certainly a
+typo. Vince (Nov 22 2026) said to leave Square alone and fix it in
+ours, so `modifiers.json` / `modifiers.js` use **$3.10**; Square itself
+still shows $310.00 and has NOT been changed. Do not "correct" our
+$3.10 back to $310.00.
 
 ## Modifier flows (pizza + wings)
 
@@ -55,9 +57,17 @@ One question per window, big buttons, Back on every step:
    For halves, toppings come first, then a "Specialty half" section
    with the 13 specialty halves. The line shows both halves
    (e.g. `16" BYO — Left: Pepperoni; Right: Hawaiian`).
-2. **Specialty pizzas:** after the size picker, an optional "Add
-   extra toppings" step using the whole-pizza set for that size.
-   "No extra toppings" skips it; Done with none chosen does the same.
+2. **Specialty pizzas:** after the size picker, "Add extra toppings?"
+   offers Whole pizza / Left half / Right half / No extra toppings.
+   Whole uses the whole-pizza set for that size; a half walks both
+   halves exactly like Build Your Own (finish one half, get offered
+   the other, with the Specialty half section on each). The line
+   shows only halves that have picks
+   (e.g. `18" Hawaiian — Left: Jalapeños; Right: Olives`; one half
+   only reads `18" Hawaiian — Left: Jalapeños`) — no "cheese only"
+   for an untouched half, since the base pizza already covers it.
+   "No extra toppings" (or Done with none chosen) rings up the plain
+   pizza, as before.
 3. **Wings** (Bone-in; Boneless 5/10/15): tap wing item → flavor
    picker (9 flavors, required, all free) → if "1/2 & 1/2", a second
    picker for the two half flavors (exactly 2) → celery choice
@@ -139,8 +149,9 @@ Seltzers, Cider, NA Beer, Soda & More, Kegs).
 
 1. Tap a category tab, tap items to add them. Tapping a pizza opens the
    size picker (12"/16"/18"/GF 10") with per-size prices, then the
-   topping flow (Build Your Own asks whole / left / right first).
-   Tapping wings opens the flavor flow (flavor → celery → extras).
+   topping flow: whole / left / right for extra toppings on every
+   pizza (specialty pizzas can also skip toppings entirely). Tapping
+   wings opens the flavor flow (flavor → celery → extras).
    Other items add straight to the order.
 2. The order panel (right side) shows lines newest first, so what
    was just added sits at the top without scrolling. Each line has
